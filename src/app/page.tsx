@@ -93,28 +93,28 @@ export default function Home() {
   const hasScenarios = scenarios.length > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* ヘッダー */}
-      <header className="bg-white border-b sticky top-0 z-20">
-        <div className="max-w-screen-2xl mx-auto px-4 h-12 flex items-center justify-between">
-          <h1 className="text-sm font-bold tracking-tight">LifePlan Sim</h1>
+      <header className="bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-20">
+        <div className="max-w-screen-2xl mx-auto px-4 h-11 flex items-center justify-between">
+          <h1 className="text-sm font-semibold tracking-tight text-gray-800">LifePlan Sim</h1>
           <div className="flex gap-1.5 items-center">
             <input ref={fileInputRef} type="file" accept=".json" onChange={handleOpenFile} className="hidden" multiple />
-            <button onClick={() => fileInputRef.current?.click()} className="text-xs px-2.5 py-1 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">
+            <button onClick={() => fileInputRef.current?.click()} className="text-[11px] px-2.5 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors">
               Open
             </button>
             {hasScenarios && (
               <>
-                <button onClick={saveScenario} className="text-xs px-2.5 py-1 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">
+                <button onClick={saveScenario} className="text-[11px] px-2.5 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors">
                   Save
                 </button>
-                <button onClick={simulate} className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium">
+                <button onClick={simulate} className="text-[11px] px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition-colors shadow-sm">
                   Run
                 </button>
               </>
             )}
-            <div className="w-px h-4 bg-gray-200 mx-1" />
-            <button onClick={resetAll} className="text-xs px-2.5 py-1 text-gray-400 hover:text-red-500">
+            <div className="w-px h-3.5 bg-gray-200 mx-0.5" />
+            <button onClick={resetAll} className="text-[11px] px-2 py-1 text-gray-400 hover:text-red-500 transition-colors">
               Reset
             </button>
           </div>
@@ -123,15 +123,15 @@ export default function Home() {
 
       {/* シナリオタブバー */}
       {hasScenarios && (
-        <div className="bg-white border-b">
-          <div className="max-w-screen-2xl mx-auto px-4 flex items-center gap-0 overflow-x-auto">
+        <div className="bg-white border-b border-gray-200/60">
+          <div className="max-w-screen-2xl mx-auto px-2 flex items-end gap-0 overflow-x-auto">
             {scenarios.map((s) => (
               <div
                 key={s.id}
-                className={`group flex items-center gap-1 px-3 py-2 text-xs cursor-pointer border-b-2 transition-colors min-w-0 ${
+                className={`group flex items-center gap-1.5 px-3.5 py-2 text-[11px] cursor-pointer border-b-2 transition-all min-w-0 ${
                   s.id === activeId
-                    ? 'border-blue-600 text-blue-700 bg-blue-50/50'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    ? 'border-blue-600 text-blue-700 font-medium'
+                    : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300'
                 }`}
                 onClick={() => switchScenario(s.id)}
               >
@@ -140,28 +140,27 @@ export default function Home() {
                     type="text"
                     defaultValue={s.name}
                     autoFocus
-                    className="text-xs border border-blue-300 rounded px-1 py-0.5 w-32 outline-none"
+                    className="text-[11px] border border-blue-300 rounded px-1.5 py-0.5 w-36 outline-none bg-blue-50"
                     onBlur={(e) => { renameScenario(s.id, e.target.value); setEditingNameId(null); }}
                     onKeyDown={(e) => { if (e.key === 'Enter') { renameScenario(s.id, e.currentTarget.value); setEditingNameId(null); } }}
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
                   <span
-                    className="truncate max-w-[150px]"
+                    className="truncate max-w-[160px]"
                     onDoubleClick={(e) => { e.stopPropagation(); setEditingNameId(s.id); }}
                   >
                     {s.name}
                   </span>
                 )}
-                {/* 枯渇インジケータ */}
                 {s.result && (
-                  <span className={`flex-shrink-0 w-2 h-2 rounded-full ${
-                    s.result.summary.negativeAge ? 'bg-red-500' : 'bg-emerald-500'
+                  <span className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${
+                    s.result.summary.negativeAge ? 'bg-red-400' : 'bg-emerald-400'
                   }`} />
                 )}
                 <button
                   onClick={(e) => { e.stopPropagation(); closeScenario(s.id); }}
-                  className="flex-shrink-0 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+                  className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all ml-0.5 text-[10px]"
                 >
                   x
                 </button>
@@ -169,7 +168,7 @@ export default function Home() {
             ))}
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex-shrink-0 px-3 py-2 text-xs text-gray-400 hover:text-blue-600"
+              className="flex-shrink-0 px-3 py-2 text-[11px] text-gray-300 hover:text-blue-500 transition-colors"
             >
               +
             </button>
@@ -179,49 +178,50 @@ export default function Home() {
 
       <div className="max-w-screen-2xl mx-auto">
         {!hasScenarios ? (
-          /* 空の状態 */
-          <div className="flex flex-col items-center justify-center py-32 text-center">
-            <div className="text-6xl mb-4 text-gray-200">$</div>
-            <h2 className="text-lg font-semibold text-gray-700 mb-2">ライフプランシミュレーター</h2>
-            <p className="text-sm text-gray-400 mb-6">JSONファイルを開いてシミュレーションを開始</p>
+          <div className="flex flex-col items-center justify-center py-40 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-6 shadow-lg shadow-blue-200">
+              <span className="text-2xl text-white font-bold">LP</span>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">LifePlan Simulator</h2>
+            <p className="text-sm text-gray-400 mb-8 max-w-xs">住宅購入、投資、保険、教育費を精密にシミュレーション。複数シナリオの比較が可能です。</p>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+              className="px-8 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-md shadow-blue-200 hover:shadow-lg transition-all"
             >
               JSONファイルを開く
             </button>
-            <p className="text-xs text-gray-300 mt-4">複数ファイルを同時に選択できます</p>
+            <p className="text-[11px] text-gray-300 mt-3">複数ファイルを同時に選択できます</p>
           </div>
         ) : (
           <>
             {/* 設定エリア */}
-            <div className="border-b bg-white">
+            <div className="bg-white border-b border-gray-200/60">
               <button
                 onClick={() => setSettingsOpen(!settingsOpen)}
-                className="w-full px-4 py-2 flex items-center justify-between text-xs text-gray-500 hover:bg-gray-50"
+                className="w-full px-4 py-1.5 flex items-center justify-between text-[11px] text-gray-400 hover:text-gray-600 hover:bg-gray-50/50 transition-colors"
               >
-                <span className="font-medium">{settingsOpen ? '設定を閉じる' : '設定を開く'}</span>
-                <span>{settingsOpen ? '▲' : '▼'}</span>
+                <span>{settingsOpen ? '設定を閉じる' : '設定を開く'}</span>
+                <span className="text-[10px]">{settingsOpen ? '▲' : '▼'}</span>
               </button>
 
               {settingsOpen && (
-                <div className="flex border-t">
-                  <nav className="w-20 md:w-28 flex-shrink-0 border-r bg-gray-50/50">
+                <div className="flex border-t border-gray-100">
+                  <nav className="w-20 md:w-28 flex-shrink-0 border-r border-gray-100 bg-gray-50/30">
                     {TABS.map((tab) => (
                       <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
-                        className={`w-full text-left px-3 py-2.5 text-xs transition-colors ${
+                        className={`w-full text-left px-3 py-2 text-[11px] transition-all ${
                           activeTab === tab.id
-                            ? 'bg-white border-r-2 border-blue-600 text-blue-700 font-medium'
-                            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                            ? 'bg-white border-r-2 border-blue-500 text-blue-600 font-medium shadow-sm'
+                            : 'text-gray-400 hover:bg-white/60 hover:text-gray-600'
                         }`}
                       >
                         {tab.label}
                       </button>
                     ))}
                   </nav>
-                  <div className="flex-1 p-4 max-h-[60vh] overflow-y-auto">
+                  <div className="flex-1 p-4 max-h-[55vh] overflow-y-auto bg-white">
                     {renderPanel()}
                   </div>
                 </div>
@@ -230,18 +230,37 @@ export default function Home() {
 
             {/* 結果エリア */}
             {result && (
-              <div className="p-4 space-y-6">
+              <div className="p-4 md:p-6 space-y-5">
                 <Summary summary={result.summary} />
-                <MonthlyPL data={result.yearly} retirementAge={config.profile.retirementAge} />
-                <AssetChart data={result.yearly} retirementAge={config.profile.retirementAge} />
-                <CashflowChart data={result.yearly} retirementAge={config.profile.retirementAge} />
-                <MortgageChart data={result.yearly} />
-                <ExpenseBreakdownChart data={result.yearly} />
-                <YearlyTable data={result.yearly} />
 
-                {/* 複数シナリオ比較(2つ以上開いている時) */}
+                <div className="bg-white rounded-xl border border-gray-200/60 p-4 shadow-sm">
+                  <MonthlyPL data={result.yearly} retirementAge={config.profile.retirementAge} />
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200/60 p-4 shadow-sm">
+                  <AssetChart data={result.yearly} retirementAge={config.profile.retirementAge} />
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200/60 p-4 shadow-sm">
+                  <CashflowChart data={result.yearly} retirementAge={config.profile.retirementAge} />
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200/60 p-4 shadow-sm">
+                  <MortgageChart data={result.yearly} />
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200/60 p-4 shadow-sm">
+                  <ExpenseBreakdownChart data={result.yearly} />
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200/60 p-4 shadow-sm overflow-hidden">
+                  <YearlyTable data={result.yearly} />
+                </div>
+
                 {scenarios.length >= 2 && scenarios.every(s => s.result) && (
-                  <ScenarioCompare />
+                  <div className="bg-white rounded-xl border border-gray-200/60 p-4 shadow-sm">
+                    <ScenarioCompare />
+                  </div>
                 )}
               </div>
             )}
