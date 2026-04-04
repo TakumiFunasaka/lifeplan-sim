@@ -42,6 +42,10 @@ interface Store {
   resetAll: () => void;
   exportConfig: () => void;
   importConfig: (json: string) => boolean;
+  // シナリオ比較
+  compareScenario: { name: string; result: SimulationResult } | null;
+  loadCompareScenario: (json: string, name: string) => boolean;
+  clearCompareScenario: () => void;
 }
 
 const defaultConfig: SimulationConfig = {
@@ -421,11 +425,9 @@ export const useStore = create<Store>()(
       importConfig: (json: string) => {
         try {
           const parsed = JSON.parse(json);
-          // 最低限のバリデーション: profileが存在するか
           if (!parsed.profile || typeof parsed.profile.currentAge !== 'number') {
             return false;
           }
-          // housingPhasesがなければデフォルトにフォールバック
           if (!Array.isArray(parsed.housingPhases)) {
             parsed.housingPhases = defaultConfig.housingPhases;
           }
@@ -435,6 +437,30 @@ export const useStore = create<Store>()(
           return false;
         }
       },
+
+      compareScenario: null,
+
+      loadCompareScenario: (json: string, name: string) => {
+        try {
+          const parsed = JSON.parse(json);
+          if (!parsed.profile || typeof parsed.profile.currentAge !== 'number') {
+            return false;
+          }
+          if (!Array.isArray(parsed.housingPhases)) {
+            parsed.housingPhases = defaultConfig.housingPhases;
+          }
+          if (!Array.isArray(parsed.rentalProperties)) {
+            parsed.rentalProperties = [];
+          }
+          const result = runSimulation({ ...defaultConfig, ...parsed });
+          set({ compareScenario: { name, result } });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+
+      clearCompareScenario: () => set({ compareScenario: null }),
     }),
     {
       name: 'lifeplan-sim-v4',

@@ -19,6 +19,7 @@ import { MortgageChart } from '@/components/charts/MortgageChart';
 import { ExpenseBreakdownChart } from '@/components/charts/ExpenseBreakdownChart';
 import { Summary } from '@/components/Summary';
 import { YearlyTable } from '@/components/YearlyTable';
+import { ScenarioCompare } from '@/components/ScenarioCompare';
 
 export default function Home() {
   const simulate = useStore((s) => s.simulate);
@@ -131,6 +132,7 @@ export default function Home() {
           <MortgageChart data={result.yearly} />
           <ExpenseBreakdownChart data={result.yearly} />
           <YearlyTable data={result.yearly} />
+          <ScenarioCompare />
         </div>
       )}
     </main>
