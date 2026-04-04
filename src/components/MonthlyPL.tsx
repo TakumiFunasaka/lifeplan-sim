@@ -16,7 +16,9 @@ interface Props {
 
 export function MonthlyPL({ data, retirementAge }: Props) {
   const [selectedAge, setSelectedAge] = useState(data[0]?.age ?? 31);
-  const year = data.find((d) => d.age === selectedAge);
+  const yearIdx = data.findIndex((d) => d.age === selectedAge);
+  const year = data[yearIdx];
+  const prevYear = yearIdx > 0 ? data[yearIdx - 1] : null;
   if (!year) return null;
 
   const monthly = (v: number) => Math.round(v / 12);
@@ -45,7 +47,13 @@ export function MonthlyPL({ data, retirementAge }: Props) {
   const investContrib = totalIncomeAnnual - totalExpenseAnnual - year.annualCashflow;
   const surplus = year.annualCashflow;
 
-  // 色分け
+  // 投資運用益(今年の投資残高 - 前年の投資残高 - 今年の積立額)
+  const prevInvestBal = prevYear?.investmentBalance ?? 0;
+  const investGain = year.investmentBalance - prevInvestBal - Math.max(0, investContrib);
+
+  // 総合収支(キャッシュ収支 + 運用益)
+  const totalPL = surplus + investGain;
+
   const isRetired = selectedAge >= retirementAge;
 
   return (
@@ -122,12 +130,23 @@ export function MonthlyPL({ data, retirementAge }: Props) {
               <span className="text-green-700">{fmtE(monthly(totalIncomeAnnual))}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-gray-600">月支出+投資</span>
+              <span className="text-gray-600">月支出+積立</span>
               <span className="text-red-700">-{fmtE(monthly(totalExpenseAnnual + Math.max(0, investContrib)))}</span>
             </div>
-            <div className={`border-t pt-1 flex justify-between text-sm font-bold ${surplus >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-              <span>月次手残り</span>
+            <div className={`border-t pt-1 flex justify-between text-xs ${surplus >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+              <span>キャッシュ収支</span>
               <span>{surplus >= 0 ? '+' : ''}{fmtE(monthly(surplus))}</span>
+            </div>
+
+            {/* 運用益 */}
+            <div className={`flex justify-between text-xs ${investGain >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+              <span>投資運用益</span>
+              <span>{investGain >= 0 ? '+' : ''}{fmtE(monthly(investGain))}</span>
+            </div>
+
+            <div className={`border-t pt-1 flex justify-between text-sm font-bold ${totalPL >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+              <span>総合損益(月)</span>
+              <span>{totalPL >= 0 ? '+' : ''}{fmtE(monthly(totalPL))}</span>
             </div>
 
             <div className="border-t pt-2 mt-2 space-y-1">
