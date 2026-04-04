@@ -6,239 +6,71 @@ import { SimulationConfig, SimulationResult, Child, Insurance, InvestmentAccount
 import { DEFAULT_EDUCATION_PATH } from '@/lib/constants';
 import { runSimulation } from '@/lib/simulation';
 
-interface Store {
+export interface Scenario {
+  id: string;
+  name: string;
   config: SimulationConfig;
   result: SimulationResult | null;
+}
+
+interface Store {
+  // マルチシナリオ
+  scenarios: Scenario[];
+  activeId: string | null;
+
+  // アクティブシナリオのショートカット(パネル互換用)
+  config: SimulationConfig;
+  result: SimulationResult | null;
+
+  // シナリオ管理
+  openScenario: (json: string, name: string) => boolean;
+  closeScenario: (id: string) => void;
+  switchScenario: (id: string) => void;
+  renameScenario: (id: string, name: string) => void;
+  saveScenario: () => void; // アクティブシナリオをJSONダウンロード
+
+  // 設定変更(アクティブシナリオに適用)
   updateConfig: (partial: Partial<SimulationConfig>) => void;
   updateProfile: (partial: Partial<SimulationConfig['profile']>) => void;
   updateIncome: (partial: Partial<SimulationConfig['income']>) => void;
   updateExpenses: (partial: Partial<SimulationConfig['expenses']>) => void;
   updatePension: (partial: Partial<SimulationConfig['pension']>) => void;
-  // Housing phases
   addHousingPhase: (phase: HousingPhase) => void;
   updateHousingPhase: (index: number, phase: HousingPhase) => void;
   removeHousingPhase: (index: number) => void;
-  // Rental properties
   addRentalProperty: (prop: RentalProperty) => void;
   updateRentalProperty: (index: number, prop: RentalProperty) => void;
   removeRentalProperty: (index: number) => void;
-  // Children
   addChild: () => void;
   updateChild: (index: number, child: Child) => void;
   removeChild: (index: number) => void;
-  // Insurance
   addInsurance: (insurance: Insurance) => void;
   updateInsurance: (index: number, insurance: Insurance) => void;
   removeInsurance: (index: number) => void;
-  // Investment
   addInvestment: (account: InvestmentAccount) => void;
   updateInvestment: (index: number, account: InvestmentAccount) => void;
   removeInvestment: (index: number) => void;
-  // Life events
   addLifeEvent: (event: LifeEvent) => void;
   updateLifeEvent: (index: number, event: LifeEvent) => void;
   removeLifeEvent: (index: number) => void;
+
   simulate: () => void;
   resetAll: () => void;
   exportConfig: (filename?: string) => void;
   importConfig: (json: string) => boolean;
-  // シナリオ比較(最大3つ)
-  compareScenarios: { name: string; result: SimulationResult }[];
-  addCompareScenario: (json: string, name: string) => boolean;
-  removeCompareScenario: (index: number) => void;
-  clearCompareScenarios: () => void;
 }
 
 const defaultConfig: SimulationConfig = {
-  profile: {
-    currentAge: 31,
-    retirementAge: 65,
-    endAge: 100,
-    spouseAge: 30,
-    spouseRetirementAge: 65,
-  },
-  income: {
-    annualSalary: 5_000_000,
-    annualBonus: 1_000_000,
-    salaryGrowthRate: 2.0,
-    peakAge: 55,
-    spouseAnnualSalary: 3_000_000,
-    spouseBonus: 500_000,
-    spouseSalaryGrowthRate: 1.5,
-    spousePeakAge: 55,
-    sideIncomeMonthly: 0,
-    otherAnnualIncome: 0,
-  },
-  expenses: {
-    food: 60_000,
-    utilities: 25_000,
-    transportation: 15_000,
-    clothing: 10_000,
-    medical: 10_000,
-    entertainment: 20_000,
-    education: 10_000,
-    miscellaneous: 15_000,
-    otherMonthly: 0,
-    annualSpecial: 300_000,
-    inflationRate: 1.0,
-  },
-  housingPhases: [
-    {
-      id: 'phase-1',
-      name: '現在のマンション',
-      type: 'condo',
-      startAge: 31,
-      propertyStatus: 'already_owned',
-      propertyPrice: 35_000_000,
-      downPayment: 0,
-      loanAmount: 0,
-      currentLoanBalance: 28_000_000,
-      interestRate: 0.5,
-      interestRateType: 'variable',
-      variableRateChanges: [],
-      loanTermYears: 30,
-      mortgageType: 'payment_equal',
-      monthlyRent: 0,
-      rentRenewalFee: 0,
-      rentRenewalIntervalYears: 0,
-      propertyTax: 120_000,
-      managementFee: 15_000,
-      repairReserveFee: 12_000,
-      annualRepairCost: 0,
-      renovationSchedule: [],
-      sellAtEnd: true,
-      salePrice: 32_000_000,
-      saleCost: 1_500_000,
-    },
-    {
-      id: 'phase-2',
-      name: '仮住まい(賃貸)',
-      type: 'rent',
-      startAge: 35,
-      propertyStatus: 'new_purchase',
-      propertyPrice: 0,
-      downPayment: 0,
-      loanAmount: 0,
-      currentLoanBalance: 0,
-      interestRate: 0,
-      interestRateType: 'fixed',
-      variableRateChanges: [],
-      loanTermYears: 0,
-      mortgageType: 'payment_equal',
-      monthlyRent: 120_000,
-      rentRenewalFee: 120_000,
-      rentRenewalIntervalYears: 2,
-      propertyTax: 0,
-      managementFee: 0,
-      repairReserveFee: 0,
-      annualRepairCost: 0,
-      renovationSchedule: [],
-      sellAtEnd: false,
-      salePrice: 0,
-      saleCost: 0,
-    },
-    {
-      id: 'phase-3',
-      name: '戸建て新居',
-      type: 'house',
-      startAge: 36,
-      propertyStatus: 'new_purchase',
-      propertyPrice: 50_000_000,
-      downPayment: 10_000_000,
-      loanAmount: 40_000_000,
-      currentLoanBalance: 0,
-      interestRate: 0.6,
-      interestRateType: 'variable',
-      variableRateChanges: [
-        { age: 46, rate: 1.0 },
-        { age: 56, rate: 1.5 },
-      ],
-      loanTermYears: 35,
-      mortgageType: 'payment_equal',
-      monthlyRent: 0,
-      rentRenewalFee: 0,
-      rentRenewalIntervalYears: 0,
-      propertyTax: 150_000,
-      managementFee: 0,
-      repairReserveFee: 0,
-      annualRepairCost: 200_000,
-      renovationSchedule: [
-        { yearsAfterStart: 15, cost: 1_500_000 },
-        { yearsAfterStart: 25, cost: 2_500_000 },
-      ],
-      sellAtEnd: false,
-      salePrice: 0,
-      saleCost: 0,
-    },
-  ],
+  profile: { currentAge: 31, retirementAge: 65, endAge: 100, spouseAge: 30, spouseRetirementAge: 65 },
+  income: { annualSalary: 5_000_000, annualBonus: 1_000_000, salaryGrowthRate: 2.0, peakAge: 55, spouseAnnualSalary: 3_000_000, spouseBonus: 500_000, spouseSalaryGrowthRate: 1.5, spousePeakAge: 55, sideIncomeMonthly: 0, otherAnnualIncome: 0 },
+  expenses: { food: 60_000, utilities: 25_000, transportation: 15_000, clothing: 10_000, medical: 10_000, entertainment: 20_000, education: 10_000, miscellaneous: 15_000, otherMonthly: 0, annualSpecial: 300_000, inflationRate: 1.0 },
+  housingPhases: [],
   rentalProperties: [],
-  children: [
-    {
-      birthYear: 2027,
-      educationPath: { ...DEFAULT_EDUCATION_PATH },
-      extracurricular: 10_000,
-    },
-  ],
-  insurances: [
-    {
-      name: '収入保障保険',
-      type: 'income_protection',
-      monthlyPremium: 3_000,
-      startAge: 31,
-      endAge: 65,
-      coverage: 100_000,
-      maturityRefund: 0,
-      maturityAge: 65,
-    },
-    {
-      name: '医療保険',
-      type: 'medical',
-      monthlyPremium: 2_500,
-      startAge: 31,
-      endAge: 100,
-      coverage: 5_000,
-      maturityRefund: 0,
-      maturityAge: 100,
-    },
-  ],
-  investments: [
-    {
-      name: 'NISA(本人)',
-      type: 'tsumitate_nisa',
-      monthlyContribution: 100_000,
-      expectedReturn: 5.0,
-      startAge: 31,
-      endAge: 65,
-      currentBalance: 7_800_000,
-      annualLimit: 3_600_000,
-    },
-    {
-      name: 'NISA(配偶者)',
-      type: 'tsumitate_nisa',
-      monthlyContribution: 100_000,
-      expectedReturn: 5.0,
-      startAge: 31,
-      endAge: 65,
-      currentBalance: 3_300_000,
-      annualLimit: 3_600_000,
-    },
-  ],
-  pension: {
-    kousei: true,
-    kokumin: true,
-    enrollmentYears: 38,
-    averageStandardRemuneration: 350_000,
-    spouseKousei: true,
-    spouseEnrollmentYears: 30,
-    spouseAverageRemuneration: 250_000,
-    corporatePensionMonthly: 0,
-    pensionStartAge: 65,
-    spousePensionStartAge: 65,
-  },
-  lifeEvents: [
-    { id: '1', name: '車購入', age: 35, lumpSumCost: 3_000_000, annualCost: 400_000, durationYears: 10 },
-    { id: '2', name: '車買替', age: 45, lumpSumCost: 3_000_000, annualCost: 400_000, durationYears: 10 },
-  ],
+  children: [],
+  insurances: [],
+  investments: [],
+  pension: { kousei: true, kokumin: true, enrollmentYears: 38, averageStandardRemuneration: 350_000, spouseKousei: true, spouseEnrollmentYears: 30, spouseAverageRemuneration: 250_000, corporatePensionMonthly: 0, pensionStartAge: 65, spousePensionStartAge: 65 },
+  lifeEvents: [],
   currentSavings: 3_000_000,
   currentInvestmentBalance: 0,
   investmentCapToSurplus: true,
@@ -247,248 +79,275 @@ const defaultConfig: SimulationConfig = {
   postRetirementReturn: 2.0,
 };
 
+function parseConfig(json: string): SimulationConfig | null {
+  try {
+    const parsed = JSON.parse(json);
+    if (!parsed.profile || typeof parsed.profile.currentAge !== 'number') return null;
+    if (!Array.isArray(parsed.housingPhases)) parsed.housingPhases = [];
+    if (!Array.isArray(parsed.rentalProperties)) parsed.rentalProperties = [];
+    return { ...defaultConfig, ...parsed };
+  } catch {
+    return null;
+  }
+}
+
+function downloadJson(data: object, filename: string) {
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename.endsWith('.json') ? filename : `${filename}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// アクティブシナリオのconfigを更新するヘルパー
+function updateActive(state: { scenarios: Scenario[]; activeId: string | null }, newConfig: SimulationConfig) {
+  const scenarios = state.scenarios.map(s =>
+    s.id === state.activeId ? { ...s, config: newConfig, result: null } : s
+  );
+  return { scenarios, config: newConfig, result: null };
+}
+
 export const useStore = create<Store>()(
   persist(
     (set, get) => ({
+      scenarios: [],
+      activeId: null,
       config: defaultConfig,
       result: null,
 
+      // === シナリオ管理 ===
+      openScenario: (json, name) => {
+        const config = parseConfig(json);
+        if (!config) return false;
+        const id = `s-${Date.now()}`;
+        const result = runSimulation(config);
+        const scenario: Scenario = { id, name, config, result };
+        set((state) => ({
+          scenarios: [...state.scenarios, scenario],
+          activeId: id,
+          config,
+          result,
+        }));
+        return true;
+      },
+
+      closeScenario: (id) => {
+        set((state) => {
+          const scenarios = state.scenarios.filter(s => s.id !== id);
+          if (state.activeId === id) {
+            const next = scenarios[0] ?? null;
+            return {
+              scenarios,
+              activeId: next?.id ?? null,
+              config: next?.config ?? defaultConfig,
+              result: next?.result ?? null,
+            };
+          }
+          return { scenarios };
+        });
+      },
+
+      switchScenario: (id) => {
+        const state = get();
+        // 現在のアクティブを保存
+        const scenarios = state.scenarios.map(s =>
+          s.id === state.activeId ? { ...s, config: state.config, result: state.result } : s
+        );
+        const target = scenarios.find(s => s.id === id);
+        if (!target) return;
+        set({ scenarios, activeId: id, config: target.config, result: target.result });
+      },
+
+      renameScenario: (id, name) => {
+        set((state) => ({
+          scenarios: state.scenarios.map(s => s.id === id ? { ...s, name } : s),
+        }));
+      },
+
+      saveScenario: () => {
+        const state = get();
+        const active = state.scenarios.find(s => s.id === state.activeId);
+        if (!active) return;
+        // まずscenariosを最新configで更新
+        const scenarios = state.scenarios.map(s =>
+          s.id === state.activeId ? { ...s, config: state.config, result: state.result } : s
+        );
+        set({ scenarios });
+        downloadJson(state.config, active.name);
+      },
+
+      // === 設定変更 ===
       updateConfig: (partial) =>
-        set((state) => ({ config: { ...state.config, ...partial } })),
+        set((state) => {
+          const newConfig = { ...state.config, ...partial };
+          return updateActive(state, newConfig);
+        }),
 
       updateProfile: (partial) =>
-        set((state) => ({
-          config: { ...state.config, profile: { ...state.config.profile, ...partial } },
-        })),
+        set((state) => {
+          const newConfig = { ...state.config, profile: { ...state.config.profile, ...partial } };
+          return updateActive(state, newConfig);
+        }),
 
       updateIncome: (partial) =>
-        set((state) => ({
-          config: { ...state.config, income: { ...state.config.income, ...partial } },
-        })),
+        set((state) => {
+          const newConfig = { ...state.config, income: { ...state.config.income, ...partial } };
+          return updateActive(state, newConfig);
+        }),
 
       updateExpenses: (partial) =>
-        set((state) => ({
-          config: { ...state.config, expenses: { ...state.config.expenses, ...partial } },
-        })),
+        set((state) => {
+          const newConfig = { ...state.config, expenses: { ...state.config.expenses, ...partial } };
+          return updateActive(state, newConfig);
+        }),
 
       updatePension: (partial) =>
-        set((state) => ({
-          config: { ...state.config, pension: { ...state.config.pension, ...partial } },
-        })),
+        set((state) => {
+          const newConfig = { ...state.config, pension: { ...state.config.pension, ...partial } };
+          return updateActive(state, newConfig);
+        }),
 
       addHousingPhase: (phase) =>
-        set((state) => ({
-          config: { ...state.config, housingPhases: [...state.config.housingPhases, phase] },
-        })),
+        set((state) => {
+          const newConfig = { ...state.config, housingPhases: [...state.config.housingPhases, phase] };
+          return updateActive(state, newConfig);
+        }),
 
       updateHousingPhase: (index, phase) =>
         set((state) => {
           const phases = [...state.config.housingPhases];
           phases[index] = phase;
-          return { config: { ...state.config, housingPhases: phases } };
+          return updateActive(state, { ...state.config, housingPhases: phases });
         }),
 
       removeHousingPhase: (index) =>
-        set((state) => ({
-          config: {
-            ...state.config,
-            housingPhases: state.config.housingPhases.filter((_, i) => i !== index),
-          },
-        })),
+        set((state) => {
+          return updateActive(state, { ...state.config, housingPhases: state.config.housingPhases.filter((_, i) => i !== index) });
+        }),
 
       addRentalProperty: (prop) =>
-        set((state) => ({
-          config: { ...state.config, rentalProperties: [...(state.config.rentalProperties ?? []), prop] },
-        })),
+        set((state) => {
+          return updateActive(state, { ...state.config, rentalProperties: [...(state.config.rentalProperties ?? []), prop] });
+        }),
 
       updateRentalProperty: (index, prop) =>
         set((state) => {
           const props = [...(state.config.rentalProperties ?? [])];
           props[index] = prop;
-          return { config: { ...state.config, rentalProperties: props } };
+          return updateActive(state, { ...state.config, rentalProperties: props });
         }),
 
       removeRentalProperty: (index) =>
-        set((state) => ({
-          config: {
-            ...state.config,
-            rentalProperties: (state.config.rentalProperties ?? []).filter((_, i) => i !== index),
-          },
-        })),
+        set((state) => {
+          return updateActive(state, { ...state.config, rentalProperties: (state.config.rentalProperties ?? []).filter((_, i) => i !== index) });
+        }),
 
       addChild: () =>
-        set((state) => ({
-          config: {
+        set((state) => {
+          return updateActive(state, {
             ...state.config,
-            children: [
-              ...state.config.children,
-              { birthYear: 2028, educationPath: { ...DEFAULT_EDUCATION_PATH }, extracurricular: 10_000 },
-            ],
-          },
-        })),
+            children: [...state.config.children, { birthYear: 2028, educationPath: { ...DEFAULT_EDUCATION_PATH }, extracurricular: 10_000 }],
+          });
+        }),
 
       updateChild: (index, child) =>
         set((state) => {
           const children = [...state.config.children];
           children[index] = child;
-          return { config: { ...state.config, children } };
+          return updateActive(state, { ...state.config, children });
         }),
 
       removeChild: (index) =>
-        set((state) => ({
-          config: {
-            ...state.config,
-            children: state.config.children.filter((_, i) => i !== index),
-          },
-        })),
+        set((state) => {
+          return updateActive(state, { ...state.config, children: state.config.children.filter((_, i) => i !== index) });
+        }),
 
       addInsurance: (insurance) =>
-        set((state) => ({
-          config: { ...state.config, insurances: [...state.config.insurances, insurance] },
-        })),
+        set((state) => {
+          return updateActive(state, { ...state.config, insurances: [...state.config.insurances, insurance] });
+        }),
 
       updateInsurance: (index, insurance) =>
         set((state) => {
           const insurances = [...state.config.insurances];
           insurances[index] = insurance;
-          return { config: { ...state.config, insurances } };
+          return updateActive(state, { ...state.config, insurances });
         }),
 
       removeInsurance: (index) =>
-        set((state) => ({
-          config: {
-            ...state.config,
-            insurances: state.config.insurances.filter((_, i) => i !== index),
-          },
-        })),
+        set((state) => {
+          return updateActive(state, { ...state.config, insurances: state.config.insurances.filter((_, i) => i !== index) });
+        }),
 
       addInvestment: (account) =>
-        set((state) => ({
-          config: { ...state.config, investments: [...state.config.investments, account] },
-        })),
+        set((state) => {
+          return updateActive(state, { ...state.config, investments: [...state.config.investments, account] });
+        }),
 
       updateInvestment: (index, account) =>
         set((state) => {
           const investments = [...state.config.investments];
           investments[index] = account;
-          return { config: { ...state.config, investments } };
+          return updateActive(state, { ...state.config, investments });
         }),
 
       removeInvestment: (index) =>
-        set((state) => ({
-          config: {
-            ...state.config,
-            investments: state.config.investments.filter((_, i) => i !== index),
-          },
-        })),
+        set((state) => {
+          return updateActive(state, { ...state.config, investments: state.config.investments.filter((_, i) => i !== index) });
+        }),
 
       addLifeEvent: (event) =>
-        set((state) => ({
-          config: { ...state.config, lifeEvents: [...state.config.lifeEvents, event] },
-        })),
+        set((state) => {
+          return updateActive(state, { ...state.config, lifeEvents: [...state.config.lifeEvents, event] });
+        }),
 
       updateLifeEvent: (index, event) =>
         set((state) => {
           const lifeEvents = [...state.config.lifeEvents];
           lifeEvents[index] = event;
-          return { config: { ...state.config, lifeEvents } };
+          return updateActive(state, { ...state.config, lifeEvents });
         }),
 
       removeLifeEvent: (index) =>
-        set((state) => ({
-          config: {
-            ...state.config,
-            lifeEvents: state.config.lifeEvents.filter((_, i) => i !== index),
-          },
-        })),
+        set((state) => {
+          return updateActive(state, { ...state.config, lifeEvents: state.config.lifeEvents.filter((_, i) => i !== index) });
+        }),
 
       simulate: () => {
-        const result = runSimulation(get().config);
-        set({ result });
+        const state = get();
+        const result = runSimulation(state.config);
+        const scenarios = state.scenarios.map(s =>
+          s.id === state.activeId ? { ...s, config: state.config, result } : s
+        );
+        set({ result, scenarios });
       },
 
-      resetAll: () => set({ config: defaultConfig, result: null }),
+      resetAll: () => set({ scenarios: [], activeId: null, config: defaultConfig, result: null }),
 
       exportConfig: (filename?: string) => {
         const config = get().config;
-        const json = JSON.stringify(config, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        if (filename) {
-          a.download = filename.endsWith('.json') ? filename : `${filename}.json`;
-        } else {
-          const now = new Date();
-          const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-          a.download = `lifeplan-${dateStr}.json`;
-        }
-        a.click();
-        URL.revokeObjectURL(url);
+        const name = filename || `lifeplan-${new Date().toISOString().slice(0, 10)}`;
+        downloadJson(config, name);
       },
 
       importConfig: (json: string) => {
-        try {
-          const parsed = JSON.parse(json);
-          if (!parsed.profile || typeof parsed.profile.currentAge !== 'number') {
-            return false;
-          }
-          if (!Array.isArray(parsed.housingPhases)) {
-            parsed.housingPhases = defaultConfig.housingPhases;
-          }
-          set({ config: { ...defaultConfig, ...parsed }, result: null });
-          return true;
-        } catch {
-          return false;
-        }
+        const config = parseConfig(json);
+        if (!config) return false;
+        set({ config, result: null });
+        return true;
       },
-
-      compareScenarios: [],
-
-      addCompareScenario: (json: string, name: string) => {
-        try {
-          const parsed = JSON.parse(json);
-          if (!parsed.profile || typeof parsed.profile.currentAge !== 'number') {
-            return false;
-          }
-          if (!Array.isArray(parsed.housingPhases)) {
-            parsed.housingPhases = defaultConfig.housingPhases;
-          }
-          if (!Array.isArray(parsed.rentalProperties)) {
-            parsed.rentalProperties = [];
-          }
-          const result = runSimulation({ ...defaultConfig, ...parsed });
-          set((state) => ({
-            compareScenarios: [...state.compareScenarios, { name, result }],
-          }));
-          return true;
-        } catch {
-          return false;
-        }
-      },
-
-      removeCompareScenario: (index: number) =>
-        set((state) => ({
-          compareScenarios: state.compareScenarios.filter((_, i) => i !== index),
-        })),
-
-      clearCompareScenarios: () => set({ compareScenarios: [] }),
     }),
     {
-      name: 'lifeplan-sim-v4',
-      merge: (persisted, current) => {
-        const p = persisted as Partial<Store> | undefined;
-        if (!p || !p.config) return current;
-        // configのマージ: defaultConfigをベースに上書き、配列フィールドはpersistedを優先
-        const mergedConfig = { ...current.config, ...p.config };
-        if (!Array.isArray(mergedConfig.housingPhases)) {
-          mergedConfig.housingPhases = defaultConfig.housingPhases;
-        }
-        if (!Array.isArray(mergedConfig.rentalProperties)) {
-          mergedConfig.rentalProperties = [];
-        }
-        return { ...current, config: mergedConfig };
-      },
+      name: 'lifeplan-sim-v5',
+      partialize: (state) => ({
+        scenarios: state.scenarios,
+        activeId: state.activeId,
+        config: state.config,
+        result: state.result,
+      }),
     }
   )
 );
