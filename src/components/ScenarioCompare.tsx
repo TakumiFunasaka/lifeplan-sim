@@ -6,7 +6,10 @@ import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ReferenceLine, ResponsiveContainer,
 } from 'recharts';
-import { SimulationResult, SimulationSummary } from '@/lib/types';
+import { SimulationResult } from '@/lib/types';
+
+const COLORS = ['#2563eb', '#f97316', '#10b981', '#ef4444'];
+const COLOR_NAMES = ['blue', 'orange', 'emerald', 'red'];
 
 const fmt = (v: number) => {
   if (Math.abs(v) >= 100_000_000) return `${(v / 100_000_000).toFixed(1)}億`;
@@ -16,58 +19,17 @@ const fmt = (v: number) => {
 
 const fmtM = (v: number) => `${Math.round(v / 10_000).toLocaleString()}万`;
 
-function SummaryDiff({ a, b, nameA, nameB }: { a: SimulationSummary; b: SimulationSummary; nameA: string; nameB: string }) {
-  const rows: { label: string; valA: number; valB: number }[] = [
-    { label: '退職時 純資産', valA: a.retirementNetWorth, valB: b.retirementNetWorth },
-    { label: '100歳時 純資産', valA: a.endNetWorth, valB: b.endNetWorth },
-    { label: '資産最低額', valA: a.assetBottomAmount, valB: b.assetBottomAmount },
-    { label: 'ローン利息合計', valA: a.totalMortgageInterest, valB: b.totalMortgageInterest },
-    { label: '教育費合計', valA: a.totalEducationCost, valB: b.totalEducationCost },
-    { label: '投資利益合計', valA: a.totalInvestmentGain, valB: b.totalInvestmentGain },
-  ];
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="text-xs w-full border-collapse">
-        <thead>
-          <tr className="bg-gray-50">
-            <th className="border px-3 py-1.5 text-left">指標</th>
-            <th className="border px-3 py-1.5 text-right text-blue-600">{nameA}</th>
-            <th className="border px-3 py-1.5 text-right text-orange-600">{nameB}</th>
-            <th className="border px-3 py-1.5 text-right">差額</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => {
-            const diff = r.valA - r.valB;
-            return (
-              <tr key={r.label}>
-                <td className="border px-3 py-1.5">{r.label}</td>
-                <td className="border px-3 py-1.5 text-right">{fmtM(r.valA)}</td>
-                <td className="border px-3 py-1.5 text-right">{fmtM(r.valB)}</td>
-                <td className={`border px-3 py-1.5 text-right font-semibold ${diff > 0 ? 'text-blue-600' : diff < 0 ? 'text-orange-600' : ''}`}>
-                  {diff > 0 ? '+' : ''}{fmtM(diff)}
-                </td>
-              </tr>
-            );
-          })}
-          <tr>
-            <td className="border px-3 py-1.5">資産枯渇年齢</td>
-            <td className="border px-3 py-1.5 text-right">{a.negativeAge ? `${a.negativeAge}歳` : 'なし'}</td>
-            <td className="border px-3 py-1.5 text-right">{b.negativeAge ? `${b.negativeAge}歳` : 'なし'}</td>
-            <td className="border px-3 py-1.5 text-right">-</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  );
+interface Scenario {
+  name: string;
+  result: SimulationResult;
 }
 
 export function ScenarioCompare() {
   const result = useStore((s) => s.result);
-  const compareScenario = useStore((s) => s.compareScenario);
-  const loadCompareScenario = useStore((s) => s.loadCompareScenario);
-  const clearCompareScenario = useStore((s) => s.clearCompareScenario);
+  const compareScenarios = useStore((s) => s.compareScenarios);
+  const addCompareScenario = useStore((s) => s.addCompareScenario);
+  const removeCompareScenario = useStore((s) => s.removeCompareScenario);
+  const clearCompareScenarios = useStore((s) => s.clearCompareScenarios);
   const retirementAge = useStore((s) => s.config.profile.retirementAge);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -78,8 +40,8 @@ export function ScenarioCompare() {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
-      const ok = loadCompareScenario(text, name);
-      if (!ok) alert('比較シナリオの読み込みに失敗しました。');
+      const ok = addCompareScenario(text, name);
+      if (!ok) alert('シナリオの読み込みに失敗しました。');
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -87,135 +49,185 @@ export function ScenarioCompare() {
 
   if (!result) return null;
 
-  // 比較シナリオ未読み込み
-  if (!compareScenario) {
-    return (
-      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-        <h3 className="text-sm font-semibold mb-2">シナリオ比較</h3>
-        <p className="text-xs text-gray-500 mb-3">別のシナリオのJSONを読み込んで、現在の設定と並べて比較できます</p>
-        <input ref={fileRef} type="file" accept=".json" onChange={handleLoad} className="hidden" />
-        <button
-          onClick={() => fileRef.current?.click()}
-          className="text-sm px-4 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-600"
-        >
-          比較シナリオを読み込む
-        </button>
-      </div>
-    );
-  }
+  const scenarios: Scenario[] = [
+    { name: '現在の設定', result },
+    ...compareScenarios,
+  ];
 
-  const nameA = '現在の設定';
-  const nameB = compareScenario.name;
-  const dataA = result.yearly;
-  const dataB = compareScenario.result.yearly;
+  const hasComparisons = compareScenarios.length > 0;
 
-  // チャートデータ: 年齢をキーにマージ
-  const chartData = dataA.map((a) => {
-    const b = dataB.find((d) => d.age === a.age);
-    return {
-      age: a.age,
-      [`純資産(${nameA})`]: a.netWorth,
-      [`純資産(${nameB})`]: b?.netWorth ?? null,
-      [`総資産(${nameA})`]: a.totalAssets,
-      [`総資産(${nameB})`]: b?.totalAssets ?? null,
-      [`収支(${nameA})`]: a.annualCashflow,
-      [`収支(${nameB})`]: b?.annualCashflow ?? null,
-    };
+  // チャートデータ
+  const baseData = result.yearly;
+  const chartData = baseData.map((a) => {
+    const row: Record<string, number | null> = { age: a.age };
+    for (let si = 0; si < scenarios.length; si++) {
+      const s = scenarios[si];
+      const d = s.result.yearly.find((y) => y.age === a.age);
+      row[`純資産_${si}`] = d?.netWorth ?? null;
+      row[`収支_${si}`] = d?.annualCashflow ?? null;
+      row[`住居費_${si}`] = d?.housingCost ?? null;
+    }
+    return row;
   });
-
-  const allVals = chartData.flatMap(d => Object.values(d).filter((v): v is number => typeof v === 'number' && d.age !== v));
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-sm font-semibold">シナリオ比較: <span className="text-blue-600">{nameA}</span> vs <span className="text-orange-600">{nameB}</span></h3>
-        <div className="flex gap-2">
+      <div className="flex justify-between items-center flex-wrap gap-2">
+        <h3 className="text-sm font-semibold">シナリオ比較</h3>
+        <div className="flex gap-2 items-center">
           <input ref={fileRef} type="file" accept=".json" onChange={handleLoad} className="hidden" />
-          <button onClick={() => fileRef.current?.click()} className="text-xs px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">別のシナリオに変更</button>
-          <button onClick={clearCompareScenario} className="text-xs px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">比較を解除</button>
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="text-xs px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600"
+          >
+            + 比較シナリオ追加
+          </button>
+          {hasComparisons && (
+            <button onClick={clearCompareScenarios} className="text-xs px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">
+              全解除
+            </button>
+          )}
         </div>
       </div>
 
-      <SummaryDiff a={result.summary} b={compareScenario.result.summary} nameA={nameA} nameB={nameB} />
-
-      {/* 純資産比較チャート */}
-      <div>
-        <h4 className="text-xs font-semibold text-gray-600 mb-1">純資産の推移比較</h4>
-        <ResponsiveContainer width="100%" height={350}>
-          <ComposedChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="age" tick={{ fontSize: 11 }} />
-            <YAxis tickFormatter={fmt} tick={{ fontSize: 11 }} width={60} />
-            <Tooltip formatter={(value, name) => [fmt(Number(value)) + '円', name]} labelFormatter={(l) => `${l}歳`} />
-            <Legend />
-            <ReferenceLine x={retirementAge} stroke="#ef4444" strokeDasharray="3 3" />
-            <ReferenceLine y={0} stroke="#6b7280" />
-            <Line type="monotone" dataKey={`純資産(${nameA})`} stroke="#2563eb" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey={`純資産(${nameB})`} stroke="#f97316" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey={`総資産(${nameA})`} stroke="#2563eb" strokeWidth={1} strokeDasharray="5 5" dot={false} />
-            <Line type="monotone" dataKey={`総資産(${nameB})`} stroke="#f97316" strokeWidth={1} strokeDasharray="5 5" dot={false} />
-          </ComposedChart>
-        </ResponsiveContainer>
+      {/* シナリオ一覧 */}
+      <div className="flex flex-wrap gap-2">
+        {scenarios.map((s, i) => (
+          <div key={i} className="flex items-center gap-1.5 text-xs px-2 py-1 rounded" style={{ backgroundColor: COLORS[i] + '15', borderLeft: `3px solid ${COLORS[i]}` }}>
+            <span style={{ color: COLORS[i] }} className="font-semibold">{s.name}</span>
+            {i > 0 && (
+              <button onClick={() => removeCompareScenario(i - 1)} className="text-gray-400 hover:text-red-500 ml-1">×</button>
+            )}
+          </div>
+        ))}
       </div>
 
-      {/* 年間収支比較チャート */}
-      <div>
-        <h4 className="text-xs font-semibold text-gray-600 mb-1">年間収支の比較</h4>
-        <ResponsiveContainer width="100%" height={300}>
-          <ComposedChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="age" tick={{ fontSize: 11 }} />
-            <YAxis tickFormatter={fmt} tick={{ fontSize: 11 }} width={60} />
-            <Tooltip formatter={(value, name) => [fmt(Number(value)) + '円', name]} labelFormatter={(l) => `${l}歳`} />
-            <Legend />
-            <ReferenceLine x={retirementAge} stroke="#ef4444" strokeDasharray="3 3" />
-            <ReferenceLine y={0} stroke="#6b7280" />
-            <Line type="monotone" dataKey={`収支(${nameA})`} stroke="#2563eb" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey={`収支(${nameB})`} stroke="#f97316" strokeWidth={2} dot={false} />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
+      {!hasComparisons && (
+        <p className="text-xs text-gray-400 text-center py-4">比較シナリオのJSONを追加してください（最大3つ）</p>
+      )}
 
-      {/* 年次差分テーブル */}
-      <div>
-        <h4 className="text-xs font-semibold text-gray-600 mb-1">年次比較(5年毎)</h4>
-        <div className="overflow-x-auto">
-          <table className="text-xs w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="border px-2 py-1">年齢</th>
-                <th className="border px-2 py-1 text-blue-600">収支A</th>
-                <th className="border px-2 py-1 text-orange-600">収支B</th>
-                <th className="border px-2 py-1 text-blue-600">純資産A</th>
-                <th className="border px-2 py-1 text-orange-600">純資産B</th>
-                <th className="border px-2 py-1">差(A-B)</th>
-                <th className="border px-2 py-1 text-blue-600">住居費A</th>
-                <th className="border px-2 py-1 text-orange-600">住居費B</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dataA.filter((_, i) => i % 5 === 0 || i === dataA.length - 1).map((a) => {
-                const b = dataB.find((d) => d.age === a.age);
-                const diff = a.netWorth - (b?.netWorth ?? 0);
-                return (
-                  <tr key={a.age} className={a.age % 10 === 0 ? 'bg-blue-50/30' : ''}>
-                    <td className="border px-2 py-1 font-semibold">{a.age}</td>
-                    <td className={`border px-2 py-1 text-right ${a.annualCashflow < 0 ? 'text-red-600' : ''}`}>{fmtM(a.annualCashflow)}</td>
-                    <td className={`border px-2 py-1 text-right ${(b?.annualCashflow ?? 0) < 0 ? 'text-red-600' : ''}`}>{b ? fmtM(b.annualCashflow) : '-'}</td>
-                    <td className="border px-2 py-1 text-right">{fmtM(a.netWorth)}</td>
-                    <td className="border px-2 py-1 text-right">{b ? fmtM(b.netWorth) : '-'}</td>
-                    <td className={`border px-2 py-1 text-right font-semibold ${diff > 0 ? 'text-blue-600' : diff < 0 ? 'text-orange-600' : ''}`}>
-                      {diff > 0 ? '+' : ''}{fmtM(diff)}
-                    </td>
-                    <td className="border px-2 py-1 text-right">{fmtM(a.housingCost)}</td>
-                    <td className="border px-2 py-1 text-right">{b ? fmtM(b.housingCost) : '-'}</td>
+      {hasComparisons && (
+        <>
+          {/* サマリー比較テーブル */}
+          <div className="overflow-x-auto">
+            <table className="text-xs w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border px-3 py-1.5 text-left">指標</th>
+                  {scenarios.map((s, i) => (
+                    <th key={i} className="border px-3 py-1.5 text-right" style={{ color: COLORS[i] }}>{s.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { label: '退職時 純資産', key: 'retirementNetWorth' as const },
+                  { label: '100歳時 純資産', key: 'endNetWorth' as const },
+                  { label: '資産最低額', key: 'assetBottomAmount' as const },
+                  { label: 'ローン利息合計', key: 'totalMortgageInterest' as const },
+                  { label: '投資利益合計', key: 'totalInvestmentGain' as const },
+                ].map((row) => (
+                  <tr key={row.label}>
+                    <td className="border px-3 py-1.5">{row.label}</td>
+                    {scenarios.map((s, i) => (
+                      <td key={i} className="border px-3 py-1.5 text-right">{fmtM(s.result.summary[row.key])}</td>
+                    ))}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                ))}
+                <tr>
+                  <td className="border px-3 py-1.5">資産最低年齢</td>
+                  {scenarios.map((s, i) => (
+                    <td key={i} className="border px-3 py-1.5 text-right">{s.result.summary.assetBottomAge}歳</td>
+                  ))}
+                </tr>
+                <tr>
+                  <td className="border px-3 py-1.5">資産枯渇年齢</td>
+                  {scenarios.map((s, i) => (
+                    <td key={i} className={`border px-3 py-1.5 text-right ${s.result.summary.negativeAge ? 'text-red-600 font-semibold' : ''}`}>
+                      {s.result.summary.negativeAge ? `${s.result.summary.negativeAge}歳` : 'なし'}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* 純資産比較チャート */}
+          <div>
+            <h4 className="text-xs font-semibold text-gray-600 mb-1">純資産の推移比較</h4>
+            <ResponsiveContainer width="100%" height={350}>
+              <ComposedChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="age" tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={fmt} tick={{ fontSize: 11 }} width={60} />
+                <Tooltip formatter={(value, name) => [fmt(Number(value)) + '円', name]} labelFormatter={(l) => `${l}歳`} />
+                <Legend />
+                <ReferenceLine x={retirementAge} stroke="#ef4444" strokeDasharray="3 3" />
+                <ReferenceLine y={0} stroke="#6b7280" />
+                {scenarios.map((s, i) => (
+                  <Line key={i} type="monotone" dataKey={`純資産_${i}`} name={s.name} stroke={COLORS[i]} strokeWidth={2} dot={false} />
+                ))}
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* 年間収支比較チャート */}
+          <div>
+            <h4 className="text-xs font-semibold text-gray-600 mb-1">年間収支の比較</h4>
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="age" tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={fmt} tick={{ fontSize: 11 }} width={60} />
+                <Tooltip formatter={(value, name) => [fmt(Number(value)) + '円', name]} labelFormatter={(l) => `${l}歳`} />
+                <Legend />
+                <ReferenceLine x={retirementAge} stroke="#ef4444" strokeDasharray="3 3" />
+                <ReferenceLine y={0} stroke="#6b7280" />
+                {scenarios.map((s, i) => (
+                  <Line key={i} type="monotone" dataKey={`収支_${i}`} name={s.name} stroke={COLORS[i]} strokeWidth={2} dot={false} />
+                ))}
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* 年次比較テーブル */}
+          <div>
+            <h4 className="text-xs font-semibold text-gray-600 mb-1">年次比較(5年毎)</h4>
+            <div className="overflow-x-auto">
+              <table className="text-xs w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="border px-2 py-1">年齢</th>
+                    {scenarios.map((s, i) => (
+                      <th key={`cf-${i}`} className="border px-2 py-1" style={{ color: COLORS[i] }}>収支</th>
+                    ))}
+                    {scenarios.map((s, i) => (
+                      <th key={`nw-${i}`} className="border px-2 py-1" style={{ color: COLORS[i] }}>純資産</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {baseData.filter((_, i) => i % 5 === 0 || i === baseData.length - 1).map((a) => (
+                    <tr key={a.age} className={a.age % 10 === 0 ? 'bg-blue-50/30' : ''}>
+                      <td className="border px-2 py-1 font-semibold">{a.age}</td>
+                      {scenarios.map((s, i) => {
+                        const d = s.result.yearly.find((y) => y.age === a.age);
+                        const cf = d?.annualCashflow ?? 0;
+                        return <td key={`cf-${i}`} className={`border px-2 py-1 text-right ${cf < 0 ? 'text-red-600' : ''}`}>{d ? fmtM(cf) : '-'}</td>;
+                      })}
+                      {scenarios.map((s, i) => {
+                        const d = s.result.yearly.find((y) => y.age === a.age);
+                        const nw = d?.netWorth ?? 0;
+                        return <td key={`nw-${i}`} className={`border px-2 py-1 text-right ${nw < 0 ? 'text-red-600' : ''}`}>{d ? fmtM(nw) : '-'}</td>;
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

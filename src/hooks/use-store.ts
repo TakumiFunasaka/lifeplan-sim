@@ -42,10 +42,11 @@ interface Store {
   resetAll: () => void;
   exportConfig: () => void;
   importConfig: (json: string) => boolean;
-  // シナリオ比較
-  compareScenario: { name: string; result: SimulationResult } | null;
-  loadCompareScenario: (json: string, name: string) => boolean;
-  clearCompareScenario: () => void;
+  // シナリオ比較(最大3つ)
+  compareScenarios: { name: string; result: SimulationResult }[];
+  addCompareScenario: (json: string, name: string) => boolean;
+  removeCompareScenario: (index: number) => void;
+  clearCompareScenarios: () => void;
 }
 
 const defaultConfig: SimulationConfig = {
@@ -438,9 +439,9 @@ export const useStore = create<Store>()(
         }
       },
 
-      compareScenario: null,
+      compareScenarios: [],
 
-      loadCompareScenario: (json: string, name: string) => {
+      addCompareScenario: (json: string, name: string) => {
         try {
           const parsed = JSON.parse(json);
           if (!parsed.profile || typeof parsed.profile.currentAge !== 'number') {
@@ -453,14 +454,21 @@ export const useStore = create<Store>()(
             parsed.rentalProperties = [];
           }
           const result = runSimulation({ ...defaultConfig, ...parsed });
-          set({ compareScenario: { name, result } });
+          set((state) => ({
+            compareScenarios: [...state.compareScenarios, { name, result }],
+          }));
           return true;
         } catch {
           return false;
         }
       },
 
-      clearCompareScenario: () => set({ compareScenario: null }),
+      removeCompareScenario: (index: number) =>
+        set((state) => ({
+          compareScenarios: state.compareScenarios.filter((_, i) => i !== index),
+        })),
+
+      clearCompareScenarios: () => set({ compareScenarios: [] }),
     }),
     {
       name: 'lifeplan-sim-v4',
