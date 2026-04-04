@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { Section } from '@/components/Section';
 import { ProfilePanel } from '@/components/panels/ProfilePanel';
@@ -30,6 +30,7 @@ export default function Home() {
   const exportConfig = useStore((s) => s.exportConfig);
   const importConfig = useStore((s) => s.importConfig);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [exportName, setExportName] = useState('');
 
   useEffect(() => {
     simulate();
@@ -71,8 +72,15 @@ export default function Home() {
           >
             インポート
           </button>
+          <input
+            type="text"
+            value={exportName}
+            onChange={(e) => setExportName(e.target.value)}
+            placeholder="ファイル名"
+            className="text-xs border border-gray-300 rounded px-2 py-1 w-32"
+          />
           <button
-            onClick={exportConfig}
+            onClick={() => exportConfig(exportName || undefined)}
             className="text-xs px-3 py-1 border border-gray-300 rounded hover:bg-gray-50"
           >
             エクスポート

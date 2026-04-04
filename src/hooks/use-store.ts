@@ -40,7 +40,7 @@ interface Store {
   removeLifeEvent: (index: number) => void;
   simulate: () => void;
   resetAll: () => void;
-  exportConfig: () => void;
+  exportConfig: (filename?: string) => void;
   importConfig: (json: string) => boolean;
   // シナリオ比較(最大3つ)
   compareScenarios: { name: string; result: SimulationResult }[];
@@ -409,16 +409,20 @@ export const useStore = create<Store>()(
 
       resetAll: () => set({ config: defaultConfig, result: null }),
 
-      exportConfig: () => {
+      exportConfig: (filename?: string) => {
         const config = get().config;
         const json = JSON.stringify(config, null, 2);
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        const now = new Date();
-        const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-        a.download = `lifeplan-${dateStr}.json`;
+        if (filename) {
+          a.download = filename.endsWith('.json') ? filename : `${filename}.json`;
+        } else {
+          const now = new Date();
+          const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+          a.download = `lifeplan-${dateStr}.json`;
+        }
         a.click();
         URL.revokeObjectURL(url);
       },
