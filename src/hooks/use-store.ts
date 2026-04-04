@@ -374,7 +374,7 @@ export const useStore = create<Store>()(
       resetAll: () => set({ config: defaultConfig, result: null }),
     }),
     {
-      name: 'lifeplan-sim-storage',
+      name: 'lifeplan-sim-v2',
     }
   )
 );
