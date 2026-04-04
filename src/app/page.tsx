@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useStore } from '@/hooks/use-store';
 import { Section } from '@/components/Section';
 import { ProfilePanel } from '@/components/panels/ProfilePanel';
@@ -24,16 +24,56 @@ export default function Home() {
   const result = useStore((s) => s.result);
   const config = useStore((s) => s.config);
   const resetAll = useStore((s) => s.resetAll);
+  const exportConfig = useStore((s) => s.exportConfig);
+  const importConfig = useStore((s) => s.importConfig);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     simulate();
   }, [simulate]);
 
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      const ok = importConfig(text);
+      if (ok) {
+        simulate();
+      } else {
+        alert('JSONの読み込みに失敗しました。ファイル形式を確認してください。');
+      }
+    };
+    reader.readAsText(file);
+    // 同じファイルを再選択できるようにリセット
+    e.target.value = '';
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold">ライフプランシミュレーター</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImport}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="text-xs px-3 py-1 border border-gray-300 rounded hover:bg-gray-50"
+          >
+            インポート
+          </button>
+          <button
+            onClick={exportConfig}
+            className="text-xs px-3 py-1 border border-gray-300 rounded hover:bg-gray-50"
+          >
+            エクスポート
+          </button>
           <button
             onClick={resetAll}
             className="text-xs px-3 py-1 border border-gray-300 rounded hover:bg-gray-50"

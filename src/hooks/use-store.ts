@@ -36,6 +36,8 @@ interface Store {
   removeLifeEvent: (index: number) => void;
   simulate: () => void;
   resetAll: () => void;
+  exportConfig: () => void;
+  importConfig: (json: string) => boolean;
 }
 
 const defaultConfig: SimulationConfig = {
@@ -372,6 +374,38 @@ export const useStore = create<Store>()(
       },
 
       resetAll: () => set({ config: defaultConfig, result: null }),
+
+      exportConfig: () => {
+        const config = get().config;
+        const json = JSON.stringify(config, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+        a.download = `lifeplan-${dateStr}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+
+      importConfig: (json: string) => {
+        try {
+          const parsed = JSON.parse(json);
+          // 最低限のバリデーション: profileが存在するか
+          if (!parsed.profile || typeof parsed.profile.currentAge !== 'number') {
+            return false;
+          }
+          // housingPhasesがなければデフォルトにフォールバック
+          if (!Array.isArray(parsed.housingPhases)) {
+            parsed.housingPhases = defaultConfig.housingPhases;
+          }
+          set({ config: { ...defaultConfig, ...parsed }, result: null });
+          return true;
+        } catch {
+          return false;
+        }
+      },
     }),
     {
       name: 'lifeplan-sim-v2',
