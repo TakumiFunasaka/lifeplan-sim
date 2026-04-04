@@ -44,7 +44,8 @@ function getPhaseEndAge(phases: HousingPhase[], phase: HousingPhase, endAge: num
  * メインシミュレーション実行
  */
 export function runSimulation(config: SimulationConfig): SimulationResult {
-  const { profile, income, expenses, housingPhases, children, insurances, investments, pension, lifeEvents } = config;
+  const { profile, income, expenses, children, insurances, investments, pension, lifeEvents } = config;
+  const housingPhases = Array.isArray(config.housingPhases) ? config.housingPhases : [];
   const startYear = CURRENT_YEAR;
   const years = profile.endAge - profile.currentAge + 1;
 

@@ -375,6 +375,17 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'lifeplan-sim-v2',
+      merge: (persisted, current) => {
+        const p = persisted as Partial<Store> | undefined;
+        if (!p || !p.config) return current;
+        // configのマージ: defaultConfigをベースに上書き、配列フィールドはpersistedを優先
+        const mergedConfig = { ...current.config, ...p.config };
+        // housingPhasesが配列でなければデフォルトにフォールバック
+        if (!Array.isArray(mergedConfig.housingPhases)) {
+          mergedConfig.housingPhases = defaultConfig.housingPhases;
+        }
+        return { ...current, config: mergedConfig };
+      },
     }
   )
 );
