@@ -33,6 +33,7 @@ export function YearlyTable({ data }: Props) {
               <th className="border px-2 py-1">住居費</th>
               <th className="border px-2 py-1">教育費</th>
               <th className="border px-2 py-1">保険料</th>
+              <th className="border px-2 py-1">不動産損益</th>
               <th className="border px-2 py-1">支出計</th>
               <th className="border px-2 py-1">年間収支</th>
               <th className="border px-2 py-1">現金</th>
@@ -54,6 +55,7 @@ export function YearlyTable({ data }: Props) {
                 <td className="border px-2 py-1 text-right">{fmtM(d.housingCost)}</td>
                 <td className="border px-2 py-1 text-right">{fmtM(d.childEducationCost)}</td>
                 <td className="border px-2 py-1 text-right">{fmtM(d.insurancePremium)}</td>
+                <td className={`border px-2 py-1 text-right ${d.rentalNetIncome < 0 ? 'text-red-600' : d.rentalNetIncome > 0 ? 'text-green-600' : ''}`}>{d.rentalNetIncome !== 0 ? fmtM(d.rentalNetIncome) : '-'}</td>
                 <td className="border px-2 py-1 text-right">{fmtM(d.totalExpenses)}</td>
                 <td className={`border px-2 py-1 text-right ${d.annualCashflow < 0 ? 'text-red-600' : ''}`}>{fmtM(d.annualCashflow)}</td>
                 <td className="border px-2 py-1 text-right">{fmtM(d.cashSavings)}</td>

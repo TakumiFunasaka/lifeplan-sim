@@ -136,6 +136,42 @@ export interface Pension {
   spousePensionStartAge: number;
 }
 
+// ===== 不動産資産(賃貸経営) =====
+export type RentalPropertyType = 'condo' | 'house';
+
+export interface RentalProperty {
+  id: string;
+  name: string; // "旧マンション(賃貸運用)" etc.
+  propertyType: RentalPropertyType;
+  startAge: number; // 賃貸運用開始年齢
+
+  // 賃料収入
+  monthlyRent: number; // 月額賃料
+  vacancyRate: number; // 空室率 %
+  managementCommissionRate: number; // 管理委託手数料 (賃料に対する %)
+
+  // 維持費
+  propertyTax: number; // 固定資産税(年額)
+  managementFee: number; // 管理費(月額、マンションのみ)
+  repairReserveFee: number; // 修繕積立金(月額、マンションのみ)
+  annualRepairCost: number; // 修繕費(年額、戸建てのみ)
+  otherAnnualCost: number; // その他年間経費(保険等)
+
+  // ローン(継続中の場合)
+  hasLoan: boolean;
+  loanBalance: number; // 運用開始時のローン残高
+  loanInterestRate: number; // %
+  loanRemainingYears: number;
+  loanInterestRateType: InterestRateType;
+  loanVariableRateChanges: { age: number; rate: number }[];
+  loanMortgageType: MortgageType;
+
+  // 売却
+  sellAge: number | null; // null = 売却しない
+  salePrice: number;
+  saleCost: number; // 売却諸費用
+}
+
 // ===== ライフイベント =====
 export interface LifeEvent {
   id: string;
@@ -152,6 +188,7 @@ export interface SimulationConfig {
   income: Income;
   expenses: Expenses;
   housingPhases: HousingPhase[];
+  rentalProperties: RentalProperty[];
   children: Child[];
   insurances: Insurance[];
   investments: InvestmentAccount[];
@@ -186,8 +223,13 @@ export interface YearlyResult {
   mortgagePayment: number;
   mortgagePrincipal: number;
   mortgageInterest: number;
+  // 不動産資産
+  rentalIncome: number;
+  rentalExpense: number;
+  rentalNetIncome: number; // 賃料収入 - 経費 - ローン(マイナス=持ち出し)
+  rentalLoanBalance: number; // 賃貸物件のローン残高合計
   // netWorth
-  netWorth: number; // totalAssets - mortgageBalance
+  netWorth: number; // totalAssets - mortgageBalance - rentalLoanBalance
   // メタ
   annualCashflow: number;
   eventLabels: string[];

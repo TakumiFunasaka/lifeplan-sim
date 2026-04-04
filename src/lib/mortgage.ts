@@ -1,4 +1,4 @@
-import { HousingPhase } from './types';
+import { HousingPhase, RentalProperty } from './types';
 
 export interface MortgagePayment {
   year: number;
@@ -123,4 +123,42 @@ export function calcMortgageSchedule(phase: HousingPhase): MortgagePayment[] {
   }
 
   return schedule;
+}
+
+/**
+ * 賃貸物件のローン返済スケジュールを計算
+ */
+export function calcRentalLoanSchedule(prop: RentalProperty): MortgagePayment[] {
+  if (!prop.hasLoan || prop.loanBalance <= 0) return [];
+
+  // HousingPhaseと同じインターフェースに変換して再利用
+  const pseudoPhase: HousingPhase = {
+    id: prop.id,
+    name: prop.name,
+    type: prop.propertyType,
+    startAge: prop.startAge,
+    monthlyRent: 0,
+    rentRenewalFee: 0,
+    rentRenewalIntervalYears: 0,
+    propertyStatus: 'already_owned',
+    propertyPrice: 0,
+    downPayment: 0,
+    loanAmount: 0,
+    currentLoanBalance: prop.loanBalance,
+    interestRate: prop.loanInterestRate,
+    interestRateType: prop.loanInterestRateType,
+    variableRateChanges: prop.loanVariableRateChanges,
+    loanTermYears: prop.loanRemainingYears,
+    mortgageType: prop.loanMortgageType,
+    propertyTax: 0,
+    managementFee: 0,
+    repairReserveFee: 0,
+    annualRepairCost: 0,
+    renovationSchedule: [],
+    sellAtEnd: false,
+    salePrice: 0,
+    saleCost: 0,
+  };
+
+  return calcMortgageSchedule(pseudoPhase);
 }

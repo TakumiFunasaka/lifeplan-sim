@@ -6,7 +6,7 @@ import {
   HousingPhase,
 } from './types';
 import { calcNetIncome } from './tax';
-import { calcMortgageSchedule, MortgagePayment } from './mortgage';
+import { calcMortgageSchedule, calcRentalLoanSchedule, MortgagePayment } from './mortgage';
 import { calcTotalEducationCost } from './education';
 import { getPensionIncomeForAge } from './pension';
 import { CURRENT_YEAR } from './constants';
@@ -59,6 +59,20 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
         byAge.set(phase.startAge + i, mp);
       });
       mortgageSchedules.set(phase.id, byAge);
+    }
+  }
+
+  // 賃貸物件のローン返済スケジュールを事前計算
+  const rentalProperties = Array.isArray(config.rentalProperties) ? config.rentalProperties : [];
+  const rentalLoanSchedules = new Map<string, Map<number, MortgagePayment>>();
+  for (const prop of rentalProperties) {
+    if (prop.hasLoan && prop.loanBalance > 0) {
+      const schedule = calcRentalLoanSchedule(prop);
+      const byAge = new Map<number, MortgagePayment>();
+      schedule.forEach((mp, i) => {
+        byAge.set(prop.startAge + i, mp);
+      });
+      rentalLoanSchedules.set(prop.id, byAge);
     }
   }
 
@@ -298,8 +312,67 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
       investmentBreakdown[acc.name] = balance;
     });
 
+    // ========== 不動産資産(賃貸経営) ==========
+    let rentalIncome = 0;
+    let rentalExpense = 0;
+    let rentalLoanBalance = 0;
+    let rentalLoanPayment = 0;
+
+    for (const prop of rentalProperties) {
+      // 売却済みチェック
+      if (prop.sellAge !== null && age >= prop.sellAge) {
+        // 売却年にキャッシュ反映
+        if (age === prop.sellAge) {
+          // 売却時のローン残高
+          let loanBal = 0;
+          const loanSched = rentalLoanSchedules.get(prop.id);
+          if (loanSched) {
+            const prevMp = loanSched.get(age - 1);
+            if (prevMp) loanBal = prevMp.balance;
+          }
+          const proceeds = prop.salePrice - prop.saleCost - loanBal;
+          cashSavings += proceeds;
+          eventLabels.push(`${prop.name}売却(${proceeds >= 0 ? '+' : ''}${Math.round(proceeds / 10000)}万)`);
+        }
+        continue;
+      }
+
+      if (age < prop.startAge) continue;
+
+      // 賃料収入
+      const grossRent = prop.monthlyRent * 12;
+      const effectiveRent = Math.round(grossRent * (1 - prop.vacancyRate / 100));
+      const commission = Math.round(effectiveRent * prop.managementCommissionRate / 100);
+      rentalIncome += effectiveRent;
+
+      // 経費
+      let propExpense = commission + prop.propertyTax + prop.otherAnnualCost;
+      if (prop.propertyType === 'condo') {
+        propExpense += (prop.managementFee + prop.repairReserveFee) * 12;
+      } else {
+        propExpense += prop.annualRepairCost;
+      }
+      rentalExpense += propExpense;
+
+      // ローン返済
+      const loanSched = rentalLoanSchedules.get(prop.id);
+      if (loanSched) {
+        const mp = loanSched.get(age);
+        if (mp) {
+          rentalLoanPayment += mp.payment;
+          rentalLoanBalance += mp.balance;
+        }
+      }
+    }
+
+    const rentalNetIncome = rentalIncome - rentalExpense - rentalLoanPayment;
+    incomeBreakdown['不動産'] = rentalNetIncome;
+    if (rentalIncome > 0 || rentalExpense > 0) {
+      expenseBreakdown['不動産経費'] = rentalExpense + rentalLoanPayment;
+    }
+
     // ========== キャッシュフロー ==========
-    const annualCashflow = totalIncome - totalExpenses - totalContribution;
+    const annualCashflow = totalIncome + rentalNetIncome - totalExpenses - totalContribution;
     cashSavings += annualCashflow;
 
     yearly.push({
@@ -322,7 +395,11 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
       mortgagePayment,
       mortgagePrincipal,
       mortgageInterest,
-      netWorth: Math.round(cashSavings + totalInvestmentBalance - mortgageBalance),
+      rentalIncome,
+      rentalExpense: rentalExpense + rentalLoanPayment,
+      rentalNetIncome,
+      rentalLoanBalance: Math.round(rentalLoanBalance),
+      netWorth: Math.round(cashSavings + totalInvestmentBalance - mortgageBalance - rentalLoanBalance),
       annualCashflow: Math.round(annualCashflow),
       eventLabels,
       incomeBreakdown,

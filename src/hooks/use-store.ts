@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { SimulationConfig, SimulationResult, Child, Insurance, InvestmentAccount, LifeEvent, HousingPhase } from '@/lib/types';
+import { SimulationConfig, SimulationResult, Child, Insurance, InvestmentAccount, LifeEvent, HousingPhase, RentalProperty } from '@/lib/types';
 import { DEFAULT_EDUCATION_PATH } from '@/lib/constants';
 import { runSimulation } from '@/lib/simulation';
 
@@ -18,6 +18,10 @@ interface Store {
   addHousingPhase: (phase: HousingPhase) => void;
   updateHousingPhase: (index: number, phase: HousingPhase) => void;
   removeHousingPhase: (index: number) => void;
+  // Rental properties
+  addRentalProperty: (prop: RentalProperty) => void;
+  updateRentalProperty: (index: number, prop: RentalProperty) => void;
+  removeRentalProperty: (index: number) => void;
   // Children
   addChild: () => void;
   updateChild: (index: number, child: Child) => void;
@@ -162,6 +166,7 @@ const defaultConfig: SimulationConfig = {
       saleCost: 0,
     },
   ],
+  rentalProperties: [],
   children: [
     {
       birthYear: 2027,
@@ -279,6 +284,26 @@ export const useStore = create<Store>()(
           config: {
             ...state.config,
             housingPhases: state.config.housingPhases.filter((_, i) => i !== index),
+          },
+        })),
+
+      addRentalProperty: (prop) =>
+        set((state) => ({
+          config: { ...state.config, rentalProperties: [...(state.config.rentalProperties ?? []), prop] },
+        })),
+
+      updateRentalProperty: (index, prop) =>
+        set((state) => {
+          const props = [...(state.config.rentalProperties ?? [])];
+          props[index] = prop;
+          return { config: { ...state.config, rentalProperties: props } };
+        }),
+
+      removeRentalProperty: (index) =>
+        set((state) => ({
+          config: {
+            ...state.config,
+            rentalProperties: (state.config.rentalProperties ?? []).filter((_, i) => i !== index),
           },
         })),
 
@@ -408,15 +433,17 @@ export const useStore = create<Store>()(
       },
     }),
     {
-      name: 'lifeplan-sim-v2',
+      name: 'lifeplan-sim-v3',
       merge: (persisted, current) => {
         const p = persisted as Partial<Store> | undefined;
         if (!p || !p.config) return current;
         // configのマージ: defaultConfigをベースに上書き、配列フィールドはpersistedを優先
         const mergedConfig = { ...current.config, ...p.config };
-        // housingPhasesが配列でなければデフォルトにフォールバック
         if (!Array.isArray(mergedConfig.housingPhases)) {
           mergedConfig.housingPhases = defaultConfig.housingPhases;
+        }
+        if (!Array.isArray(mergedConfig.rentalProperties)) {
+          mergedConfig.rentalProperties = [];
         }
         return { ...current, config: mergedConfig };
       },

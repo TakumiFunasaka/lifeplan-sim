@@ -12,6 +12,7 @@ import { InsurancePanel } from '@/components/panels/InsurancePanel';
 import { InvestmentPanel } from '@/components/panels/InvestmentPanel';
 import { PensionPanel } from '@/components/panels/PensionPanel';
 import { LifeEventPanel } from '@/components/panels/LifeEventPanel';
+import { RentalPropertyPanel } from '@/components/panels/RentalPropertyPanel';
 import { AssetChart } from '@/components/charts/AssetChart';
 import { CashflowChart } from '@/components/charts/CashflowChart';
 import { MortgageChart } from '@/components/charts/MortgageChart';
@@ -101,6 +102,9 @@ export default function Home() {
         </Section>
         <Section title="住居(賃貸・購入・売却)">
           <HousingPanel />
+        </Section>
+        <Section title="不動産資産(賃貸経営)">
+          <RentalPropertyPanel />
         </Section>
         <Section title="子供・教育">
           <ChildrenPanel />
