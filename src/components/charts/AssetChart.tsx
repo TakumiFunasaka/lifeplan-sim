@@ -52,8 +52,7 @@ export function AssetChart({ data, retirementAge }: Props) {
           <Legend />
           <ReferenceLine x={retirementAge} stroke="#ef4444" strokeDasharray="3 3" label={{ value: '退職', fill: '#ef4444', fontSize: 11 }} />
           <ReferenceLine y={0} stroke="#6b7280" strokeWidth={1.5} />
-          {/* 総資産の塗りでマイナス領域を可視化 */}
-          <Area type="monotone" dataKey="総資産" fill="#2563eb" fillOpacity={0.1} stroke="none" />
+          <Area type="monotone" dataKey="総資産" fill="#2563eb" fillOpacity={0.1} stroke="none" legendType="none" />
           <Line type="monotone" dataKey="現金" stroke="#34d399" strokeWidth={1.5} dot={false} />
           <Line type="monotone" dataKey="投資" stroke="#818cf8" strokeWidth={1.5} dot={false} />
           <Line type="monotone" dataKey="総資産" stroke="#2563eb" strokeWidth={2} dot={false} />
