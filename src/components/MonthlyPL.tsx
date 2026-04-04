@@ -59,8 +59,12 @@ export function MonthlyPL({ data, retirementAge }: Props) {
   return (
     <div>
       <div className="flex justify-between items-center mb-3">
-        <h3 className="text-sm font-semibold">月次PL</h3>
         <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold">月次PL</h3>
+          {isRetired && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded">退職後</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold w-10 text-right">{selectedAge}歳</span>
           <input
             type="range"
             min={data[0]?.age ?? 31}
@@ -69,8 +73,6 @@ export function MonthlyPL({ data, retirementAge }: Props) {
             onChange={(e) => setSelectedAge(Number(e.target.value))}
             className="w-48"
           />
-          <span className="text-sm font-semibold w-16 text-right">{selectedAge}歳</span>
-          {isRetired && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded">退職後</span>}
         </div>
       </div>
 
