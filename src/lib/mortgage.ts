@@ -1,4 +1,4 @@
-import { Housing } from './types';
+import { HousingPhase } from './types';
 
 export interface MortgagePayment {
   year: number;
@@ -10,37 +10,38 @@ export interface MortgagePayment {
 
 /**
  * 住宅ローンの返済スケジュールを計算
- * 元利均等(payment_equal) / 元金均等(principal_equal) 対応
- * 変動金利シナリオ対応
+ * HousingPhase単位で呼び出す
+ * already_owned の場合は currentLoanBalance を初期残高として使う
  */
-export function calcMortgageSchedule(housing: Housing): MortgagePayment[] {
-  if (!housing.isOwner || housing.loanAmount <= 0) return [];
+export function calcMortgageSchedule(phase: HousingPhase): MortgagePayment[] {
+  if (phase.type === 'rent') return [];
+
+  const initialBalance = phase.propertyStatus === 'already_owned'
+    ? phase.currentLoanBalance
+    : phase.loanAmount;
+
+  if (initialBalance <= 0) return [];
 
   const schedule: MortgagePayment[] = [];
-  let balance = housing.loanAmount;
-  const totalMonths = housing.loanTermYears * 12;
+  let balance = initialBalance;
+  const totalMonths = phase.loanTermYears * 12;
 
-  // 変動金利の場合、年齢→金利のマップを構築
   const rateByAge = new Map<number, number>();
-  if (housing.interestRateType === 'variable' && housing.variableRateChanges.length > 0) {
-    for (const change of housing.variableRateChanges) {
+  if (phase.interestRateType === 'variable') {
+    for (const change of phase.variableRateChanges) {
       rateByAge.set(change.age, change.rate);
     }
   }
 
-  let currentRate = housing.interestRate / 100;
+  let currentRate = phase.interestRate / 100;
   let monthlyRate = currentRate / 12;
 
-  if (housing.mortgageType === 'payment_equal') {
-    // === 元利均等返済 ===
-    // 変動金利の場合は5年ルール・125%ルールは簡略化して無視
-    // 金利変更時に残期間で再計算
+  if (phase.mortgageType === 'payment_equal') {
     let remainingMonths = totalMonths;
 
-    for (let year = 0; year < housing.loanTermYears; year++) {
-      const age = housing.purchaseAge + year;
+    for (let year = 0; year < phase.loanTermYears; year++) {
+      const age = phase.startAge + year;
 
-      // 変動金利チェック
       if (rateByAge.has(age)) {
         currentRate = rateByAge.get(age)! / 100;
         monthlyRate = currentRate / 12;
@@ -51,9 +52,8 @@ export function calcMortgageSchedule(housing: Housing): MortgagePayment[] {
       let yearInterest = 0;
 
       for (let m = 0; m < 12; m++) {
-        if (balance <= 0) break;
+        if (balance <= 0 || remainingMonths <= 0) break;
 
-        // 月々の返済額を残高と残期間で再計算
         let monthlyPayment: number;
         if (monthlyRate === 0) {
           monthlyPayment = balance / remainingMonths;
@@ -80,13 +80,14 @@ export function calcMortgageSchedule(housing: Housing): MortgagePayment[] {
         interest: Math.round(yearInterest),
         balance: Math.round(balance),
       });
+
+      if (balance <= 0) break;
     }
   } else {
-    // === 元金均等返済 ===
-    const monthlyPrincipal = housing.loanAmount / totalMonths;
+    const monthlyPrincipal = initialBalance / totalMonths;
 
-    for (let year = 0; year < housing.loanTermYears; year++) {
-      const age = housing.purchaseAge + year;
+    for (let year = 0; year < phase.loanTermYears; year++) {
+      const age = phase.startAge + year;
 
       if (rateByAge.has(age)) {
         currentRate = rateByAge.get(age)! / 100;
@@ -116,6 +117,8 @@ export function calcMortgageSchedule(housing: Housing): MortgagePayment[] {
         interest: Math.round(yearInterest),
         balance: Math.round(balance),
       });
+
+      if (balance <= 0) break;
     }
   }
 

@@ -2,29 +2,35 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { SimulationConfig, SimulationResult, Child, Insurance, InvestmentAccount, LifeEvent } from '@/lib/types';
+import { SimulationConfig, SimulationResult, Child, Insurance, InvestmentAccount, LifeEvent, HousingPhase } from '@/lib/types';
 import { DEFAULT_EDUCATION_PATH } from '@/lib/constants';
 import { runSimulation } from '@/lib/simulation';
 
 interface Store {
   config: SimulationConfig;
   result: SimulationResult | null;
-  // actions
   updateConfig: (partial: Partial<SimulationConfig>) => void;
   updateProfile: (partial: Partial<SimulationConfig['profile']>) => void;
   updateIncome: (partial: Partial<SimulationConfig['income']>) => void;
   updateExpenses: (partial: Partial<SimulationConfig['expenses']>) => void;
-  updateHousing: (partial: Partial<SimulationConfig['housing']>) => void;
   updatePension: (partial: Partial<SimulationConfig['pension']>) => void;
+  // Housing phases
+  addHousingPhase: (phase: HousingPhase) => void;
+  updateHousingPhase: (index: number, phase: HousingPhase) => void;
+  removeHousingPhase: (index: number) => void;
+  // Children
   addChild: () => void;
   updateChild: (index: number, child: Child) => void;
   removeChild: (index: number) => void;
+  // Insurance
   addInsurance: (insurance: Insurance) => void;
   updateInsurance: (index: number, insurance: Insurance) => void;
   removeInsurance: (index: number) => void;
+  // Investment
   addInvestment: (account: InvestmentAccount) => void;
   updateInvestment: (index: number, account: InvestmentAccount) => void;
   removeInvestment: (index: number) => void;
+  // Life events
   addLifeEvent: (event: LifeEvent) => void;
   updateLifeEvent: (index: number, event: LifeEvent) => void;
   removeLifeEvent: (index: number) => void;
@@ -53,7 +59,6 @@ const defaultConfig: SimulationConfig = {
     otherAnnualIncome: 0,
   },
   expenses: {
-    housing: 100_000,
     food: 60_000,
     utilities: 25_000,
     transportation: 15_000,
@@ -66,27 +71,95 @@ const defaultConfig: SimulationConfig = {
     annualSpecial: 300_000,
     inflationRate: 1.0,
   },
-  housing: {
-    isOwner: false,
-    purchaseAge: 33,
-    propertyPrice: 45_000_000,
-    downPayment: 5_000_000,
-    loanAmount: 40_000_000,
-    interestRate: 0.5,
-    interestRateType: 'variable',
-    variableRateChanges: [
-      { age: 43, rate: 1.0 },
-      { age: 53, rate: 1.5 },
-    ],
-    loanTermYears: 35,
-    mortgageType: 'payment_equal',
-    propertyTax: 150_000,
-    maintenanceFee: 300_000,
-    renovationSchedule: [
-      { age: 48, cost: 1_500_000 },
-      { age: 58, cost: 2_000_000 },
-    ],
-  },
+  housingPhases: [
+    {
+      id: 'phase-1',
+      name: '現在のマンション',
+      type: 'condo',
+      startAge: 31,
+      propertyStatus: 'already_owned',
+      propertyPrice: 35_000_000,
+      downPayment: 0,
+      loanAmount: 0,
+      currentLoanBalance: 28_000_000,
+      interestRate: 0.5,
+      interestRateType: 'variable',
+      variableRateChanges: [],
+      loanTermYears: 30,
+      mortgageType: 'payment_equal',
+      monthlyRent: 0,
+      rentRenewalFee: 0,
+      rentRenewalIntervalYears: 0,
+      propertyTax: 120_000,
+      managementFee: 15_000,
+      repairReserveFee: 12_000,
+      annualRepairCost: 0,
+      renovationSchedule: [],
+      sellAtEnd: true,
+      salePrice: 32_000_000,
+      saleCost: 1_500_000,
+    },
+    {
+      id: 'phase-2',
+      name: '仮住まい(賃貸)',
+      type: 'rent',
+      startAge: 35,
+      propertyStatus: 'new_purchase',
+      propertyPrice: 0,
+      downPayment: 0,
+      loanAmount: 0,
+      currentLoanBalance: 0,
+      interestRate: 0,
+      interestRateType: 'fixed',
+      variableRateChanges: [],
+      loanTermYears: 0,
+      mortgageType: 'payment_equal',
+      monthlyRent: 120_000,
+      rentRenewalFee: 120_000,
+      rentRenewalIntervalYears: 2,
+      propertyTax: 0,
+      managementFee: 0,
+      repairReserveFee: 0,
+      annualRepairCost: 0,
+      renovationSchedule: [],
+      sellAtEnd: false,
+      salePrice: 0,
+      saleCost: 0,
+    },
+    {
+      id: 'phase-3',
+      name: '戸建て新居',
+      type: 'house',
+      startAge: 36,
+      propertyStatus: 'new_purchase',
+      propertyPrice: 50_000_000,
+      downPayment: 10_000_000,
+      loanAmount: 40_000_000,
+      currentLoanBalance: 0,
+      interestRate: 0.6,
+      interestRateType: 'variable',
+      variableRateChanges: [
+        { age: 46, rate: 1.0 },
+        { age: 56, rate: 1.5 },
+      ],
+      loanTermYears: 35,
+      mortgageType: 'payment_equal',
+      monthlyRent: 0,
+      rentRenewalFee: 0,
+      rentRenewalIntervalYears: 0,
+      propertyTax: 150_000,
+      managementFee: 0,
+      repairReserveFee: 0,
+      annualRepairCost: 200_000,
+      renovationSchedule: [
+        { yearsAfterStart: 15, cost: 1_500_000 },
+        { yearsAfterStart: 25, cost: 2_500_000 },
+      ],
+      sellAtEnd: false,
+      salePrice: 0,
+      saleCost: 0,
+    },
+  ],
   children: [
     {
       birthYear: 2027,
@@ -182,14 +255,29 @@ export const useStore = create<Store>()(
           config: { ...state.config, expenses: { ...state.config.expenses, ...partial } },
         })),
 
-      updateHousing: (partial) =>
-        set((state) => ({
-          config: { ...state.config, housing: { ...state.config.housing, ...partial } },
-        })),
-
       updatePension: (partial) =>
         set((state) => ({
           config: { ...state.config, pension: { ...state.config.pension, ...partial } },
+        })),
+
+      addHousingPhase: (phase) =>
+        set((state) => ({
+          config: { ...state.config, housingPhases: [...state.config.housingPhases, phase] },
+        })),
+
+      updateHousingPhase: (index, phase) =>
+        set((state) => {
+          const phases = [...state.config.housingPhases];
+          phases[index] = phase;
+          return { config: { ...state.config, housingPhases: phases } };
+        }),
+
+      removeHousingPhase: (index) =>
+        set((state) => ({
+          config: {
+            ...state.config,
+            housingPhases: state.config.housingPhases.filter((_, i) => i !== index),
+          },
         })),
 
       addChild: () =>

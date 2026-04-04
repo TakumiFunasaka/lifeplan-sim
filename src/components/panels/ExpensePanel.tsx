@@ -9,9 +9,8 @@ export function ExpensePanel() {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-gray-400">月額ベース(住居費は住宅セクションで管理する場合は0に)</p>
+      <p className="text-xs text-gray-400">住居費以外の月額支出(住居費は住宅セクションで管理)</p>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <NumberField label="家賃(賃貸の場合)" value={expenses.housing} onChange={(v) => updateExpenses({ housing: v })} step={5000} suffix="円/月" />
         <NumberField label="食費" value={expenses.food} onChange={(v) => updateExpenses({ food: v })} step={5000} suffix="円/月" />
         <NumberField label="光熱・通信費" value={expenses.utilities} onChange={(v) => updateExpenses({ utilities: v })} step={1000} suffix="円/月" />
         <NumberField label="交通費" value={expenses.transportation} onChange={(v) => updateExpenses({ transportation: v })} step={1000} suffix="円/月" />

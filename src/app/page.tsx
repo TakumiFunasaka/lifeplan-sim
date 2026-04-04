@@ -59,7 +59,7 @@ export default function Home() {
         <Section title="支出(月額)">
           <ExpensePanel />
         </Section>
-        <Section title="住宅">
+        <Section title="住居(賃貸・購入・売却)">
           <HousingPanel />
         </Section>
         <Section title="子供・教育">

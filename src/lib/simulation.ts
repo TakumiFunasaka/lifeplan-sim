@@ -3,6 +3,7 @@ import {
   YearlyResult,
   SimulationResult,
   SimulationSummary,
+  HousingPhase,
 } from './types';
 import { calcNetIncome } from './tax';
 import { calcMortgageSchedule, MortgagePayment } from './mortgage';
@@ -11,37 +12,70 @@ import { getPensionIncomeForAge } from './pension';
 import { CURRENT_YEAR } from './constants';
 
 /**
+ * 各年齢でどのHousingPhaseに住んでいるか判定
+ * フェーズはstartAgeでソートし、次のフェーズ開始まで有効
+ */
+function getPhaseForAge(phases: HousingPhase[], age: number): HousingPhase | null {
+  const sorted = [...phases].sort((a, b) => a.startAge - b.startAge);
+  let current: HousingPhase | null = null;
+  for (const p of sorted) {
+    if (age >= p.startAge) {
+      current = p;
+    } else {
+      break;
+    }
+  }
+  return current;
+}
+
+/**
+ * フェーズの終了年齢(= 次のフェーズの開始年齢、なければendAge)
+ */
+function getPhaseEndAge(phases: HousingPhase[], phase: HousingPhase, endAge: number): number {
+  const sorted = [...phases].sort((a, b) => a.startAge - b.startAge);
+  const idx = sorted.findIndex(p => p.id === phase.id);
+  if (idx >= 0 && idx < sorted.length - 1) {
+    return sorted[idx + 1].startAge;
+  }
+  return endAge + 1;
+}
+
+/**
  * メインシミュレーション実行
  */
 export function runSimulation(config: SimulationConfig): SimulationResult {
-  const { profile, income, expenses, housing, children, insurances, investments, pension, lifeEvents } = config;
+  const { profile, income, expenses, housingPhases, children, insurances, investments, pension, lifeEvents } = config;
   const startYear = CURRENT_YEAR;
   const years = profile.endAge - profile.currentAge + 1;
 
-  // ローン返済スケジュールを事前計算
-  const mortgageSchedule = calcMortgageSchedule(housing);
-  const mortgageByAge = new Map<number, MortgagePayment>();
-  mortgageSchedule.forEach((mp, i) => {
-    mortgageByAge.set(housing.purchaseAge + i, mp);
-  });
+  // 各購入フェーズのローン返済スケジュールを事前計算
+  const mortgageSchedules = new Map<string, Map<number, MortgagePayment>>();
+  for (const phase of housingPhases) {
+    if (phase.type !== 'rent') {
+      const schedule = calcMortgageSchedule(phase);
+      const byAge = new Map<number, MortgagePayment>();
+      schedule.forEach((mp, i) => {
+        byAge.set(phase.startAge + i, mp);
+      });
+      mortgageSchedules.set(phase.id, byAge);
+    }
+  }
 
-  // iDeCo年額を計算(税控除用)
   const idecoAccounts = investments.filter(a => a.type === 'ideco');
 
-  // 結果配列
   const yearly: YearlyResult[] = [];
-
   let cashSavings = config.currentSavings;
-  // 投資残高は各口座の currentBalance の合計で初期化
   const investmentBalances = new Map<number, number>();
   investments.forEach((acc, i) => {
     investmentBalances.set(i, acc.currentBalance);
   });
 
+  // 前年のフェーズIDを追跡(フェーズ切替時の売却判定用)
+  let prevPhaseId: string | null = null;
+
   for (let y = 0; y < years; y++) {
     const age = profile.currentAge + y;
     const year = startYear + y;
-    const spouseAge = profile.spouseAge !== null ? profile.spouseAge + y : null;
 
     const eventLabels: string[] = [];
     const incomeBreakdown: Record<string, number> = {};
@@ -53,13 +87,13 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
     let spouseGross = 0;
 
     if (age < profile.retirementAge) {
-      // 昇給計算
       const yearsWorked = y;
       const growthYears = Math.min(yearsWorked, income.peakAge - profile.currentAge);
       const growthFactor = growthYears > 0 ? Math.pow(1 + income.salaryGrowthRate / 100, growthYears) : 1;
       grossSalary = Math.round((income.annualSalary + income.annualBonus) * growthFactor);
     }
 
+    const spouseAge = profile.spouseAge !== null ? profile.spouseAge + y : null;
     if (spouseAge !== null && spouseAge < profile.spouseRetirementAge) {
       const spouseYears = y;
       const spouseGrowthYears = Math.min(spouseYears, income.spousePeakAge - (profile.spouseAge ?? 0));
@@ -68,21 +102,15 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
       spouseGross = Math.round((income.spouseAnnualSalary + income.spouseBonus) * spouseGrowthFactor);
     }
 
-    // iDeCo控除額
     const idecoAnnual = idecoAccounts
       .filter(a => age >= a.startAge && age <= a.endAge)
       .reduce((sum, a) => sum + a.monthlyContribution * 12, 0);
 
     const selfNet = calcNetIncome(grossSalary, idecoAnnual);
     const spouseNet = calcNetIncome(spouseGross, 0);
-
-    // 年金
     const pensionIncome = getPensionIncomeForAge(age, pension, profile);
-
-    // 副業・その他
     const sideIncome = age < profile.retirementAge ? income.sideIncomeMonthly * 12 : 0;
     const otherIncome = income.otherAnnualIncome;
-
     const totalIncome = selfNet.netIncome + spouseNet.netIncome + pensionIncome + sideIncome + otherIncome;
 
     incomeBreakdown['給与(本人)'] = selfNet.netIncome;
@@ -94,7 +122,6 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
     // ========== 支出 ==========
     const inflationFactor = Math.pow(1 + expenses.inflationRate / 100, y);
 
-    // 生活費
     const baseLiving = (
       expenses.food + expenses.utilities + expenses.transportation +
       expenses.clothing + expenses.medical + expenses.entertainment +
@@ -112,52 +139,95 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
     expenseBreakdown['雑費'] = Math.round(expenses.miscellaneous * 12 * inflationFactor);
     expenseBreakdown['特別支出'] = Math.round(expenses.annualSpecial * inflationFactor);
 
-    // 住居費
+    // ========== 住居費 ==========
     let housingCost = 0;
     let mortgagePayment = 0;
     let mortgagePrincipal = 0;
     let mortgageInterest = 0;
     let mortgageBalance = 0;
 
-    if (housing.isOwner) {
-      const mp = mortgageByAge.get(age);
-      if (mp) {
-        mortgagePayment = mp.payment;
-        mortgagePrincipal = mp.principal;
-        mortgageInterest = mp.interest;
-        mortgageBalance = mp.balance;
-        housingCost = mp.payment;
-      } else if (age >= housing.purchaseAge) {
-        // ローン完済後 → 維持費のみ
-        mortgageBalance = 0;
+    const currentPhase = getPhaseForAge(housingPhases, age);
+
+    // フェーズ切替時: 前フェーズの売却処理
+    if (currentPhase && prevPhaseId && currentPhase.id !== prevPhaseId) {
+      const prevPhase = housingPhases.find(p => p.id === prevPhaseId);
+      if (prevPhase && prevPhase.sellAtEnd && prevPhase.type !== 'rent') {
+        // 売却益 = 売却額 - 諸費用 - ローン残高
+        const prevMortgage = mortgageSchedules.get(prevPhase.id);
+        let remainingLoan = 0;
+        if (prevMortgage) {
+          // 前年(= 売却時)のローン残高を取得
+          const prevYearAge = age - 1;
+          const mp = prevMortgage.get(prevYearAge);
+          if (mp) remainingLoan = mp.balance;
+        }
+        const saleProceeds = prevPhase.salePrice - prevPhase.saleCost - remainingLoan;
+        cashSavings += saleProceeds;
+        eventLabels.push(`${prevPhase.name}売却(${saleProceeds >= 0 ? '+' : ''}${Math.round(saleProceeds / 10000)}万)`);
+      }
+    }
+
+    if (currentPhase) {
+      if (currentPhase.type === 'rent') {
+        // 賃貸
+        housingCost = currentPhase.monthlyRent * 12;
+        // 更新料
+        const yearsInPhase = age - currentPhase.startAge;
+        if (currentPhase.rentRenewalIntervalYears > 0 && yearsInPhase > 0 && yearsInPhase % currentPhase.rentRenewalIntervalYears === 0) {
+          housingCost += currentPhase.rentRenewalFee;
+        }
       } else {
-        // 購入前 → 家賃
-        housingCost = expenses.housing * 12;
-      }
+        // 購入(condo/house)
+        const phaseSchedule = mortgageSchedules.get(currentPhase.id);
 
-      // 頭金(購入年)
-      if (age === housing.purchaseAge) {
-        housingCost += housing.downPayment;
-        eventLabels.push('住宅購入');
-      }
+        // フェーズ開始年: 新規購入なら頭金
+        if (age === currentPhase.startAge && currentPhase.propertyStatus === 'new_purchase') {
+          housingCost += currentPhase.downPayment;
+          eventLabels.push(`${currentPhase.name}購入`);
+        }
 
-      // 維持費(購入後)
-      if (age >= housing.purchaseAge) {
-        housingCost += housing.propertyTax + housing.maintenanceFee;
-      }
+        // ローン返済
+        if (phaseSchedule) {
+          const mp = phaseSchedule.get(age);
+          if (mp) {
+            mortgagePayment = mp.payment;
+            mortgagePrincipal = mp.principal;
+            mortgageInterest = mp.interest;
+            mortgageBalance = mp.balance;
+            housingCost += mp.payment;
+          } else {
+            // ローン完済後 or 範囲外
+            // 最後のエントリの残高を確認
+            const lastAge = Math.max(...Array.from(phaseSchedule.keys()));
+            if (age > lastAge) {
+              mortgageBalance = 0;
+            }
+          }
+        }
 
-      // リフォーム
-      for (const reno of housing.renovationSchedule) {
-        if (reno.age === age) {
-          housingCost += reno.cost;
-          eventLabels.push('リフォーム');
+        // 維持費
+        housingCost += currentPhase.propertyTax;
+
+        if (currentPhase.type === 'condo') {
+          housingCost += (currentPhase.managementFee + currentPhase.repairReserveFee) * 12;
+        } else {
+          // 戸建て
+          housingCost += currentPhase.annualRepairCost;
+        }
+
+        // リフォーム
+        const yearsInPhase = age - currentPhase.startAge;
+        for (const reno of currentPhase.renovationSchedule) {
+          if (reno.yearsAfterStart === yearsInPhase) {
+            housingCost += reno.cost;
+            eventLabels.push(`${currentPhase.name}リフォーム`);
+          }
         }
       }
-    } else {
-      housingCost = Math.round(expenses.housing * 12 * inflationFactor);
     }
 
     expenseBreakdown['住居費'] = housingCost;
+    prevPhaseId = currentPhase?.id ?? null;
 
     // 教育費
     const eduResult = calcTotalEducationCost(children, year);
@@ -182,7 +252,6 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
       if (age >= ins.startAge && age <= ins.endAge) {
         insurancePremium += ins.monthlyPremium * 12;
       }
-      // 満期返戻金
       if (ins.maturityAge === age && ins.maturityRefund > 0) {
         cashSavings += ins.maturityRefund;
         eventLabels.push(`${ins.name}満期`);
@@ -211,15 +280,11 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
 
     investments.forEach((acc, i) => {
       let balance = investmentBalances.get(i) || 0;
-
-      // 運用益
       const annualReturn = acc.expectedReturn / 100;
       balance = Math.round(balance * (1 + annualReturn));
 
-      // 積立
       if (age >= acc.startAge && age <= acc.endAge) {
         let annualContribution = acc.monthlyContribution * 12;
-        // 年間上限チェック
         if (acc.annualLimit && annualContribution > acc.annualLimit) {
           annualContribution = acc.annualLimit;
         }
@@ -236,7 +301,6 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
     const annualCashflow = totalIncome - totalExpenses - totalContribution;
     cashSavings += annualCashflow;
 
-    // ========== 結果格納 ==========
     yearly.push({
       age,
       year,
@@ -276,8 +340,8 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
   const totalInsurancePremium = yearly.reduce((s, y) => s + y.insurancePremium, 0);
   const totalEducationCost = yearly.reduce((s, y) => s + y.childEducationCost, 0);
   const totalContributions = investments.reduce((s, acc) => {
-    const years = Math.max(0, Math.min(acc.endAge, profile.endAge) - Math.max(acc.startAge, profile.currentAge) + 1);
-    return s + acc.monthlyContribution * 12 * years;
+    const yrs = Math.max(0, Math.min(acc.endAge, profile.endAge) - Math.max(acc.startAge, profile.currentAge) + 1);
+    return s + acc.monthlyContribution * 12 * yrs;
   }, 0) + investments.reduce((s, a) => s + a.currentBalance, 0);
   const finalInvestment = endYear.investmentBalance;
   const totalInvestmentGain = finalInvestment - totalContributions;

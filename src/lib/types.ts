@@ -23,7 +23,6 @@ export interface Income {
 
 // ===== 支出(月額ベース) =====
 export interface Expenses {
-  housing: number; // 家賃 (持ち家の場合は0にしてローンで管理)
   food: number;
   utilities: number; // 光熱費・通信費
   transportation: number;
@@ -40,23 +39,44 @@ export interface Expenses {
 // ===== 住宅 =====
 export type MortgageType = 'principal_equal' | 'payment_equal'; // 元金均等 / 元利均等
 export type InterestRateType = 'fixed' | 'variable';
+export type HousingType = 'rent' | 'condo' | 'house'; // 賃貸 / マンション購入 / 戸建て購入
+export type PropertyStatus = 'new_purchase' | 'already_owned'; // 新規購入 / 既に所有
 
-export interface Housing {
-  isOwner: boolean;
-  // 購入時
-  purchaseAge: number;
-  propertyPrice: number; // 物件価格
-  downPayment: number; // 頭金
-  loanAmount: number; // 借入額
+export interface HousingPhase {
+  id: string;
+  name: string; // 表示名 (例: "現在のマンション", "賃貸(仮住まい)", "戸建て新居")
+  type: HousingType;
+  startAge: number; // この住居に住み始める年齢
+
+  // === 賃貸の場合 ===
+  monthlyRent: number; // 月額家賃
+  rentRenewalFee: number; // 更新料(2年毎等)
+  rentRenewalIntervalYears: number; // 更新間隔
+
+  // === 購入(condo/house)の場合 ===
+  propertyStatus: PropertyStatus;
+  propertyPrice: number; // 物件価格(already_ownedの場合は参考値)
+  downPayment: number; // 頭金(新規購入時のみ)
+  loanAmount: number; // 借入額(0=ローンなし)
   interestRate: number; // 金利 %
   interestRateType: InterestRateType;
-  variableRateChanges: { age: number; rate: number }[]; // 変動金利のシナリオ
-  loanTermYears: number; // 借入期間
+  variableRateChanges: { age: number; rate: number }[];
+  loanTermYears: number;
   mortgageType: MortgageType;
-  // 維持費(年額)
-  propertyTax: number; // 固定資産税
-  maintenanceFee: number; // 修繕積立金+管理費(年額)
-  renovationSchedule: { age: number; cost: number }[]; // リフォーム計画
+  // 残ローン(already_ownedの場合: 現在のローン残高、残期間は loanTermYears で設定)
+  currentLoanBalance: number;
+
+  // === 維持費(購入の場合) ===
+  propertyTax: number; // 固定資産税(年額)
+  managementFee: number; // 管理費(月額、マンションのみ)
+  repairReserveFee: number; // 修繕積立金(月額、マンションのみ)
+  annualRepairCost: number; // 年間修繕費(戸建ての場合の積立目安)
+  renovationSchedule: { yearsAfterStart: number; cost: number }[]; // リフォーム(住み始めてからN年後)
+
+  // === 売却設定 ===
+  sellAtEnd: boolean; // このフェーズ終了時に売却するか
+  salePrice: number; // 売却見込み額
+  saleCost: number; // 売却諸費用(仲介手数料等)
 }
 
 // ===== 子供 =====
@@ -131,7 +151,7 @@ export interface SimulationConfig {
   profile: Profile;
   income: Income;
   expenses: Expenses;
-  housing: Housing;
+  housingPhases: HousingPhase[];
   children: Child[];
   insurances: Insurance[];
   investments: InvestmentAccount[];
