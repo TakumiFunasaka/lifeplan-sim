@@ -19,6 +19,7 @@ import { MortgageChart } from '@/components/charts/MortgageChart';
 import { ExpenseBreakdownChart } from '@/components/charts/ExpenseBreakdownChart';
 import { Summary } from '@/components/Summary';
 import { YearlyTable } from '@/components/YearlyTable';
+import { MonthlyPL } from '@/components/MonthlyPL';
 import { ScenarioCompare } from '@/components/ScenarioCompare';
 
 export default function Home() {
@@ -127,6 +128,7 @@ export default function Home() {
       {result && (
         <div className="space-y-6">
           <Summary summary={result.summary} />
+          <MonthlyPL data={result.yearly} retirementAge={config.profile.retirementAge} />
           <AssetChart data={result.yearly} retirementAge={config.profile.retirementAge} />
           <CashflowChart data={result.yearly} retirementAge={config.profile.retirementAge} />
           <MortgageChart data={result.yearly} />
