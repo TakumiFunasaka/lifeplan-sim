@@ -198,24 +198,24 @@ const defaultConfig: SimulationConfig = {
   ],
   investments: [
     {
-      name: 'つみたてNISA',
+      name: 'NISA(本人)',
       type: 'tsumitate_nisa',
       monthlyContribution: 100_000,
       expectedReturn: 5.0,
       startAge: 31,
       endAge: 65,
-      currentBalance: 500_000,
-      annualLimit: 1_200_000,
+      currentBalance: 7_800_000,
+      annualLimit: 3_600_000,
     },
     {
-      name: 'iDeCo',
-      type: 'ideco',
-      monthlyContribution: 23_000,
-      expectedReturn: 4.0,
+      name: 'NISA(配偶者)',
+      type: 'tsumitate_nisa',
+      monthlyContribution: 100_000,
+      expectedReturn: 5.0,
       startAge: 31,
       endAge: 65,
-      currentBalance: 0,
-      annualLimit: 276_000,
+      currentBalance: 3_300_000,
+      annualLimit: 3_600_000,
     },
   ],
   pension: {
@@ -236,6 +236,10 @@ const defaultConfig: SimulationConfig = {
   ],
   currentSavings: 3_000_000,
   currentInvestmentBalance: 0,
+  investmentCapToSurplus: true,
+  retirementDrawdown: true,
+  retirementDrawdownBuffer: 3_000_000,
+  postRetirementReturn: 2.0,
 };
 
 export const useStore = create<Store>()(
@@ -433,7 +437,7 @@ export const useStore = create<Store>()(
       },
     }),
     {
-      name: 'lifeplan-sim-v3',
+      name: 'lifeplan-sim-v4',
       merge: (persisted, current) => {
         const p = persisted as Partial<Store> | undefined;
         if (!p || !p.config) return current;

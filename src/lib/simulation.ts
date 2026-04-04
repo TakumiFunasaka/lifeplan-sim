@@ -293,23 +293,52 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
     let totalInvestmentBalance = 0;
     let totalContribution = 0;
 
+    // まず全口座の運用益を計算(退職後はリターン低下)
+    const isRetired = age >= profile.retirementAge;
+    const postRetReturn = config.postRetirementReturn ?? 2.0;
     investments.forEach((acc, i) => {
       let balance = investmentBalances.get(i) || 0;
-      const annualReturn = acc.expectedReturn / 100;
+      const annualReturn = (isRetired ? postRetReturn : acc.expectedReturn) / 100;
       balance = Math.round(balance * (1 + annualReturn));
+      investmentBalances.set(i, balance);
+    });
 
+    // 希望積立額を集計
+    let desiredContribution = 0;
+    const accountContributions: { index: number; desired: number }[] = [];
+    investments.forEach((acc, i) => {
       if (age >= acc.startAge && age <= acc.endAge) {
         let annualContribution = acc.monthlyContribution * 12;
         if (acc.annualLimit && annualContribution > acc.annualLimit) {
           annualContribution = acc.annualLimit;
         }
-        balance += annualContribution;
-        totalContribution += annualContribution;
+        desiredContribution += annualContribution;
+        accountContributions.push({ index: i, desired: annualContribution });
       }
+    });
 
-      investmentBalances.set(i, balance);
+    // 余剰連動: 投資前の余剰で積立額をキャップ
+    let actualTotalContribution = desiredContribution;
+    if (config.investmentCapToSurplus && desiredContribution > 0) {
+      // 投資前の年間余剰(不動産収支はこの後なので概算)
+      const surplusBeforeInvest = totalIncome - totalExpenses;
+      actualTotalContribution = Math.max(0, Math.min(desiredContribution, surplusBeforeInvest));
+    }
+
+    // 按分して各口座に積立
+    const contributionRatio = desiredContribution > 0 ? actualTotalContribution / desiredContribution : 0;
+    for (const ac of accountContributions) {
+      const actualContrib = Math.round(ac.desired * contributionRatio);
+      const balance = investmentBalances.get(ac.index) || 0;
+      investmentBalances.set(ac.index, balance + actualContrib);
+      totalContribution += actualContrib;
+    }
+
+    // 残高集計
+    investments.forEach((acc, i) => {
+      const balance = investmentBalances.get(i) || 0;
       totalInvestmentBalance += balance;
-      investmentBreakdown[acc.name] = balance;
+      investmentBreakdown[acc.name || `口座${i + 1}`] = balance;
     });
 
     // ========== 不動産資産(賃貸経営) ==========
@@ -374,6 +403,33 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
     // ========== キャッシュフロー ==========
     const annualCashflow = totalIncome + rentalNetIncome - totalExpenses - totalContribution;
     cashSavings += annualCashflow;
+
+    // ========== 退職後取り崩し ==========
+    // 現金がバッファ以下になったら投資を取り崩して補填
+    if (config.retirementDrawdown && age >= profile.retirementAge && totalInvestmentBalance > 0) {
+      const buffer = config.retirementDrawdownBuffer || 0;
+      if (cashSavings < buffer) {
+        const needed = buffer - cashSavings + Math.abs(Math.min(0, annualCashflow)); // 来年分も見越して少し多めに
+        const drawdown = Math.min(needed, totalInvestmentBalance);
+        if (drawdown > 0) {
+          // 各口座から残高按分で取り崩し
+          const drawdownRatio = drawdown / totalInvestmentBalance;
+          let actualDrawdown = 0;
+          investments.forEach((_, i) => {
+            const bal = investmentBalances.get(i) || 0;
+            const sell = Math.round(bal * drawdownRatio);
+            investmentBalances.set(i, bal - sell);
+            actualDrawdown += sell;
+          });
+          cashSavings += actualDrawdown;
+          totalInvestmentBalance -= actualDrawdown;
+          // investmentBreakdownを更新
+          investments.forEach((acc, i) => {
+            investmentBreakdown[acc.name || `口座${i + 1}`] = investmentBalances.get(i) || 0;
+          });
+        }
+      }
+    }
 
     yearly.push({
       age,

@@ -196,6 +196,10 @@ export interface SimulationConfig {
   lifeEvents: LifeEvent[];
   currentSavings: number; // 現在の貯蓄額
   currentInvestmentBalance: number; // 現在の投資残高(個別設定以外)
+  investmentCapToSurplus: boolean; // 投資額を余剰資金で自動キャップ
+  retirementDrawdown: boolean; // 退職後に投資を取り崩して生活費に充当
+  retirementDrawdownBuffer: number; // 取り崩し時の現金キープ額(これ以下になったら取り崩す)
+  postRetirementReturn: number; // 退職後の期待リターン % (リスク資産比率低下を反映)
 }
 
 // ===== シミュレーション結果 =====

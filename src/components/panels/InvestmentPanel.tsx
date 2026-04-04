@@ -28,9 +28,48 @@ export function InvestmentPanel() {
   const addInvestment = useStore((s) => s.addInvestment);
   const updateInvestment = useStore((s) => s.updateInvestment);
   const removeInvestment = useStore((s) => s.removeInvestment);
+  const config = useStore((s) => s.config);
+  const updateConfig = useStore((s) => s.updateConfig);
 
   return (
     <div className="space-y-4">
+      {/* 投資オプション */}
+      <div className="bg-gray-50 rounded p-3 space-y-2">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={config.investmentCapToSurplus ?? true}
+            onChange={(e) => updateConfig({ investmentCapToSurplus: e.target.checked })}
+          />
+          余剰連動 — 月の余剰を超える積立はしない
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={config.retirementDrawdown ?? true}
+            onChange={(e) => updateConfig({ retirementDrawdown: e.target.checked })}
+          />
+          退職後取り崩し — 現金不足時に投資を売却して補填
+        </label>
+        {config.retirementDrawdown && (
+          <NumberField
+            label="取り崩し開始の現金下限"
+            value={config.retirementDrawdownBuffer ?? 3_000_000}
+            onChange={(v) => updateConfig({ retirementDrawdownBuffer: v })}
+            step={1_000_000}
+            suffix="円"
+          />
+        )}
+        <NumberField
+          label="退職後の期待リターン"
+          value={config.postRetirementReturn ?? 2.0}
+          onChange={(v) => updateConfig({ postRetirementReturn: v })}
+          step={0.5}
+          suffix="%"
+          className="max-w-xs"
+        />
+      </div>
+
       {investments.map((acc, i) => (
         <div key={i} className="border border-gray-100 rounded p-3 space-y-2">
           <div className="flex justify-between items-center">
