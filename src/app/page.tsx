@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '@/hooks/use-store';
-import { Section } from '@/components/Section';
 import { ProfilePanel } from '@/components/panels/ProfilePanel';
 import { IncomePanel } from '@/components/panels/IncomePanel';
 import { ExpensePanel } from '@/components/panels/ExpensePanel';
@@ -22,6 +21,21 @@ import { YearlyTable } from '@/components/YearlyTable';
 import { MonthlyPL } from '@/components/MonthlyPL';
 import { ScenarioCompare } from '@/components/ScenarioCompare';
 
+const TABS = [
+  { id: 'profile', label: '基本', icon: 'P' },
+  { id: 'income', label: '収入', icon: 'Y' },
+  { id: 'expense', label: '支出', icon: 'E' },
+  { id: 'housing', label: '住居', icon: 'H' },
+  { id: 'rental', label: '不動産', icon: 'R' },
+  { id: 'children', label: '教育', icon: 'C' },
+  { id: 'insurance', label: '保険', icon: 'I' },
+  { id: 'investment', label: '投資', icon: '$' },
+  { id: 'pension', label: '年金', icon: 'N' },
+  { id: 'events', label: 'イベント', icon: 'L' },
+] as const;
+
+type TabId = typeof TABS[number]['id'];
+
 export default function Home() {
   const simulate = useStore((s) => s.simulate);
   const result = useStore((s) => s.result);
@@ -31,6 +45,8 @@ export default function Home() {
   const importConfig = useStore((s) => s.importConfig);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [exportName, setExportName] = useState('');
+  const [activeTab, setActiveTab] = useState<TabId>('profile');
+  const [settingsOpen, setSettingsOpen] = useState(true);
 
   useEffect(() => {
     simulate();
@@ -43,108 +59,115 @@ export default function Home() {
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
       const ok = importConfig(text);
-      if (ok) {
-        simulate();
-      } else {
-        alert('JSONの読み込みに失敗しました。ファイル形式を確認してください。');
-      }
+      if (ok) simulate();
+      else alert('JSONの読み込みに失敗しました。');
     };
     reader.readAsText(file);
-    // 同じファイルを再選択できるようにリセット
     e.target.value = '';
   };
 
+  const renderPanel = () => {
+    switch (activeTab) {
+      case 'profile': return <ProfilePanel />;
+      case 'income': return <IncomePanel />;
+      case 'expense': return <ExpensePanel />;
+      case 'housing': return <HousingPanel />;
+      case 'rental': return <RentalPropertyPanel />;
+      case 'children': return <ChildrenPanel />;
+      case 'insurance': return <InsurancePanel />;
+      case 'investment': return <InvestmentPanel />;
+      case 'pension': return <PensionPanel />;
+      case 'events': return <LifeEventPanel />;
+    }
+  };
+
   return (
-    <main className="max-w-7xl mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold">ライフプランシミュレーター</h1>
-        <div className="flex gap-2 items-center">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleImport}
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="text-xs px-3 py-1 border border-gray-300 rounded hover:bg-gray-50"
-          >
-            インポート
-          </button>
-          <input
-            type="text"
-            value={exportName}
-            onChange={(e) => setExportName(e.target.value)}
-            placeholder="ファイル名"
-            className="text-xs border border-gray-300 rounded px-2 py-1 w-32"
-          />
-          <button
-            onClick={() => exportConfig(exportName || undefined)}
-            className="text-xs px-3 py-1 border border-gray-300 rounded hover:bg-gray-50"
-          >
-            エクスポート
-          </button>
-          <button
-            onClick={resetAll}
-            className="text-xs px-3 py-1 border border-gray-300 rounded hover:bg-gray-50"
-          >
-            リセット
-          </button>
-          <button
-            onClick={simulate}
-            className="text-sm px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold"
-          >
-            シミュレーション実行
-          </button>
+    <div className="min-h-screen bg-gray-50">
+      {/* ヘッダー */}
+      <header className="bg-white border-b sticky top-0 z-20">
+        <div className="max-w-screen-2xl mx-auto px-4 h-12 flex items-center justify-between">
+          <h1 className="text-sm font-bold tracking-tight">LifePlan Sim</h1>
+          <div className="flex gap-1.5 items-center">
+            <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
+            <button onClick={() => fileInputRef.current?.click()} className="text-xs px-2.5 py-1 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">
+              Import
+            </button>
+            <input
+              type="text"
+              value={exportName}
+              onChange={(e) => setExportName(e.target.value)}
+              placeholder="filename"
+              className="text-xs border border-gray-200 rounded-md px-2 py-1 w-24 text-gray-600"
+            />
+            <button onClick={() => exportConfig(exportName || undefined)} className="text-xs px-2.5 py-1 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">
+              Export
+            </button>
+            <div className="w-px h-4 bg-gray-200 mx-1" />
+            <button onClick={resetAll} className="text-xs px-2.5 py-1 text-gray-400 hover:text-red-500">
+              Reset
+            </button>
+            <button
+              onClick={simulate}
+              className="text-xs px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
+            >
+              Run
+            </button>
+          </div>
         </div>
-      </div>
+      </header>
 
-      <div className="space-y-2 mb-8">
-        <Section title="基本プロファイル・貯蓄" defaultOpen={true}>
-          <ProfilePanel />
-        </Section>
-        <Section title="収入">
-          <IncomePanel />
-        </Section>
-        <Section title="支出(月額)">
-          <ExpensePanel />
-        </Section>
-        <Section title="住居(賃貸・購入・売却)">
-          <HousingPanel />
-        </Section>
-        <Section title="不動産資産(賃貸経営)">
-          <RentalPropertyPanel />
-        </Section>
-        <Section title="子供・教育">
-          <ChildrenPanel />
-        </Section>
-        <Section title="保険">
-          <InsurancePanel />
-        </Section>
-        <Section title="投資・資産運用">
-          <InvestmentPanel />
-        </Section>
-        <Section title="年金">
-          <PensionPanel />
-        </Section>
-        <Section title="ライフイベント">
-          <LifeEventPanel />
-        </Section>
-      </div>
+      <div className="max-w-screen-2xl mx-auto">
+        {/* 設定エリア（折りたたみ可能） */}
+        <div className="border-b bg-white">
+          <button
+            onClick={() => setSettingsOpen(!settingsOpen)}
+            className="w-full px-4 py-2 flex items-center justify-between text-xs text-gray-500 hover:bg-gray-50"
+          >
+            <span className="font-medium">{settingsOpen ? '設定を閉じる' : '設定を開く'}</span>
+            <span>{settingsOpen ? '▲' : '▼'}</span>
+          </button>
 
-      {result && (
-        <div className="space-y-6">
-          <Summary summary={result.summary} />
-          <MonthlyPL data={result.yearly} retirementAge={config.profile.retirementAge} />
-          <AssetChart data={result.yearly} retirementAge={config.profile.retirementAge} />
-          <CashflowChart data={result.yearly} retirementAge={config.profile.retirementAge} />
-          <MortgageChart data={result.yearly} />
-          <ExpenseBreakdownChart data={result.yearly} />
-          <YearlyTable data={result.yearly} />
-          <ScenarioCompare />
+          {settingsOpen && (
+            <div className="flex border-t">
+              {/* タブナビ */}
+              <nav className="w-20 md:w-28 flex-shrink-0 border-r bg-gray-50/50">
+                {TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`w-full text-left px-3 py-2.5 text-xs transition-colors ${
+                      activeTab === tab.id
+                        ? 'bg-white border-r-2 border-blue-600 text-blue-700 font-medium'
+                        : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+
+              {/* パネル */}
+              <div className="flex-1 p-4 max-h-[60vh] overflow-y-auto">
+                {renderPanel()}
+              </div>
+            </div>
+          )}
         </div>
-      )}
-    </main>
+
+        {/* 結果エリア */}
+        {result && (
+          <div className="p-4 space-y-6">
+            <Summary summary={result.summary} />
+            <MonthlyPL data={result.yearly} retirementAge={config.profile.retirementAge} />
+            <AssetChart data={result.yearly} retirementAge={config.profile.retirementAge} />
+            <CashflowChart data={result.yearly} retirementAge={config.profile.retirementAge} />
+            <MortgageChart data={result.yearly} />
+            <ExpenseBreakdownChart data={result.yearly} />
+            <YearlyTable data={result.yearly} />
+            <ScenarioCompare />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

@@ -13,11 +13,11 @@ interface SelectFieldProps {
 export function SelectField({ label, value, onChange, options, className }: SelectFieldProps) {
   return (
     <label className={`flex flex-col gap-0.5 ${className ?? ''}`}>
-      <span className="text-xs text-gray-500">{label}</span>
+      {label && <span className="text-[11px] text-gray-400 leading-tight">{label}</span>}
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="border border-gray-300 rounded px-2 py-1 text-sm"
+        className="border border-gray-200 rounded-md px-2 py-1 text-sm bg-white focus:border-blue-400 focus:ring-1 focus:ring-blue-100 outline-none transition-colors"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
