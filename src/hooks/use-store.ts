@@ -341,13 +341,27 @@ export const useStore = create<Store>()(
       },
     }),
     {
-      name: 'lifeplan-sim-v5',
+      name: 'lifeplan-sim-v6',
       partialize: (state) => ({
-        scenarios: state.scenarios,
+        // resultは保存しない(configから再計算可能、サイズが大きくlocalStorageを溢れさせる)
+        scenarios: state.scenarios.map(s => ({ id: s.id, name: s.name, config: s.config, result: null })),
         activeId: state.activeId,
         config: state.config,
-        result: state.result,
       }),
+      onRehydrateStorage: () => (state) => {
+        // 復元後にシミュレーションを再実行
+        if (state && state.scenarios.length > 0) {
+          const scenarios = state.scenarios.map(s => ({
+            ...s,
+            result: s.config ? runSimulation(s.config) : null,
+          }));
+          const active = scenarios.find(s => s.id === state.activeId);
+          useStore.setState({
+            scenarios,
+            result: active?.result ?? null,
+          });
+        }
+      },
     }
   )
 );
