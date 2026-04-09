@@ -54,9 +54,15 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
 
+  // 設定変更時に自動実行(500msデバウンス)
+  const configRef = useRef(config);
+  configRef.current = config;
   useEffect(() => {
-    if (scenarios.length > 0 && !result) simulate();
-  }, [scenarios, result, simulate]);
+    if (scenarios.length === 0) return;
+    const timer = setTimeout(() => simulate(), 500);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config, scenarios.length]);
 
   const handleOpenFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -104,14 +110,9 @@ export default function Home() {
               Open
             </button>
             {hasScenarios && (
-              <>
-                <button onClick={saveScenario} className="text-[11px] px-2.5 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors">
-                  Save
-                </button>
-                <button onClick={simulate} className="text-[11px] px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium transition-colors shadow-sm">
-                  Run
-                </button>
-              </>
+              <button onClick={saveScenario} className="text-[11px] px-2.5 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors">
+                Save
+              </button>
             )}
             <div className="w-px h-3.5 bg-gray-200 mx-0.5" />
             <button onClick={resetAll} className="text-[11px] px-2 py-1 text-gray-400 hover:text-red-500 transition-colors">
@@ -200,7 +201,19 @@ export default function Home() {
                 onClick={() => setSettingsOpen(!settingsOpen)}
                 className="w-full px-4 py-1.5 flex items-center justify-between text-[11px] text-gray-400 hover:text-gray-600 hover:bg-gray-50/50 transition-colors"
               >
-                <span>{settingsOpen ? '設定を閉じる' : '設定を開く'}</span>
+                {!settingsOpen && result ? (
+                  <span className="flex items-center gap-3 text-[11px] text-gray-500">
+                    <span>{config.profile.currentAge}歳</span>
+                    <span className="text-gray-300">|</span>
+                    <span>退職{config.profile.retirementAge}歳</span>
+                    <span className="text-gray-300">|</span>
+                    <span>世帯年収{Math.round((config.income.annualSalary + config.income.annualBonus + config.income.spouseAnnualSalary + config.income.spouseBonus) / 10000)}万</span>
+                    <span className="text-gray-300">|</span>
+                    <span className="font-medium">設定を開く</span>
+                  </span>
+                ) : (
+                  <span>{settingsOpen ? '設定を閉じる' : '設定を開く'}</span>
+                )}
                 <span className="text-[10px]">{settingsOpen ? '▲' : '▼'}</span>
               </button>
 
@@ -221,7 +234,7 @@ export default function Home() {
                       </button>
                     ))}
                   </nav>
-                  <div className="flex-1 p-4 max-h-[55vh] overflow-y-auto bg-white">
+                  <div className="flex-1 p-4 max-h-[40vh] overflow-y-auto bg-white">
                     {renderPanel()}
                   </div>
                 </div>
