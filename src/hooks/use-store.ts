@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { SimulationConfig, SimulationResult, Child, Insurance, InvestmentAccount, LifeEvent, HousingPhase, RentalProperty, ExpensePhase } from '@/lib/types';
+import { SimulationConfig, SimulationResult, Child, Insurance, InvestmentAccount, LifeEvent, HousingPhase, RentalProperty, ExpensePhase, IncomePhase } from '@/lib/types';
 import { DEFAULT_EDUCATION_PATH } from '@/lib/constants';
 import { runSimulation } from '@/lib/simulation';
 
@@ -38,6 +38,10 @@ interface Store {
   addExpensePhase: (phase: ExpensePhase) => void;
   updateExpensePhase: (index: number, phase: ExpensePhase) => void;
   removeExpensePhase: (index: number) => void;
+  // Income phases
+  addIncomePhase: (target: 'self' | 'spouse', phase: IncomePhase) => void;
+  updateIncomePhase: (target: 'self' | 'spouse', index: number, phase: IncomePhase) => void;
+  removeIncomePhase: (target: 'self' | 'spouse', index: number) => void;
   updatePension: (partial: Partial<SimulationConfig['pension']>) => void;
   addHousingPhase: (phase: HousingPhase) => void;
   updateHousingPhase: (index: number, phase: HousingPhase) => void;
@@ -67,6 +71,8 @@ interface Store {
 const defaultConfig: SimulationConfig = {
   profile: { currentAge: 31, retirementAge: 65, endAge: 100, spouseAge: 30, spouseRetirementAge: 65 },
   income: { annualSalary: 5_000_000, annualBonus: 1_000_000, salaryGrowthRate: 2.0, peakAge: 55, spouseAnnualSalary: 3_000_000, spouseBonus: 500_000, spouseSalaryGrowthRate: 1.5, spousePeakAge: 55, sideIncomeMonthly: 0, otherAnnualIncome: 0 },
+  incomePhases: [],
+  spouseIncomePhases: [],
   expenses: { food: 60_000, utilities: 25_000, transportation: 15_000, clothing: 10_000, medical: 10_000, entertainment: 20_000, education: 10_000, miscellaneous: 15_000, otherMonthly: 0, annualSpecial: 300_000, inflationRate: 1.0 },
   expensePhases: [],
   housingPhases: [],
@@ -91,6 +97,8 @@ function parseConfig(json: string): SimulationConfig | null {
     if (!Array.isArray(parsed.housingPhases)) parsed.housingPhases = [];
     if (!Array.isArray(parsed.rentalProperties)) parsed.rentalProperties = [];
     if (!Array.isArray(parsed.expensePhases)) parsed.expensePhases = [];
+    if (!Array.isArray(parsed.incomePhases)) parsed.incomePhases = [];
+    if (!Array.isArray(parsed.spouseIncomePhases)) parsed.spouseIncomePhases = [];
     return { ...defaultConfig, ...parsed };
   } catch {
     return null;
@@ -244,6 +252,26 @@ export const useStore = create<Store>()(
       removeExpensePhase: (index) =>
         set((state) => {
           return updateActive(state, { ...state.config, expensePhases: (state.config.expensePhases ?? []).filter((_, i) => i !== index) });
+        }),
+
+      addIncomePhase: (target, phase) =>
+        set((state) => {
+          const key = target === 'self' ? 'incomePhases' : 'spouseIncomePhases';
+          return updateActive(state, { ...state.config, [key]: [...(state.config[key] ?? []), phase] });
+        }),
+
+      updateIncomePhase: (target, index, phase) =>
+        set((state) => {
+          const key = target === 'self' ? 'incomePhases' : 'spouseIncomePhases';
+          const phases = [...(state.config[key] ?? [])];
+          phases[index] = phase;
+          return updateActive(state, { ...state.config, [key]: phases });
+        }),
+
+      removeIncomePhase: (target, index) =>
+        set((state) => {
+          const key = target === 'self' ? 'incomePhases' : 'spouseIncomePhases';
+          return updateActive(state, { ...state.config, [key]: (state.config[key] ?? []).filter((_, i) => i !== index) });
         }),
 
       updatePension: (partial) =>

@@ -21,6 +21,45 @@ export interface Income {
   otherAnnualIncome: number; // その他年収(不動産等)
 }
 
+// ===== 収入フェーズ =====
+export type IncomeType = 'salary' | 'business' | 'none'; // 給与/事業/無収入(産休等)
+
+export interface IncomePhaseBase {
+  id: string;
+  name: string;
+  startAge: number;
+  type: IncomeType;
+}
+
+export interface SalaryIncome extends IncomePhaseBase {
+  type: 'salary';
+  annualSalary: number;
+  annualBonus: number;
+  growthRate: number; // 昇給率 %
+  peakAge: number;
+}
+
+export interface BusinessIncome extends IncomePhaseBase {
+  type: 'business';
+  customerPrice: number;     // 客単価(円)
+  dailyCustomers: number;
+  workDaysPerMonth: number;
+  monthlyRent: number;       // 万円
+  staffCount: number;
+  staffMonthlyCost: number;  // 万円
+  otherMonthlyCost: number;  // 万円
+  growthRate: number;        // 年間客数成長率 %
+  rampUpYear1: number;       // 1年目の稼働率 (0-1)
+  rampUpYear2: number;       // 2年目の稼働率 (0-1)
+}
+
+export interface NoIncome extends IncomePhaseBase {
+  type: 'none';
+  reason: string; // "産休", "休職" 等
+}
+
+export type IncomePhase = SalaryIncome | BusinessIncome | NoIncome;
+
 // ===== 支出(月額ベース) =====
 export interface Expenses {
   food: number;
@@ -193,7 +232,9 @@ export interface LifeEvent {
 // ===== 全設定 =====
 export interface SimulationConfig {
   profile: Profile;
-  income: Income;
+  income: Income; // 後方互換用(incomePhasesが空の場合のフォールバック)
+  incomePhases: IncomePhase[];       // 本人の収入フェーズ
+  spouseIncomePhases: IncomePhase[]; // 配偶者の収入フェーズ
   expenses: Expenses; // 後方互換用(expensePhasesが空の場合のフォールバック)
   expensePhases: ExpensePhase[];
   housingPhases: HousingPhase[];

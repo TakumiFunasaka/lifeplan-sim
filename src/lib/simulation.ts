@@ -6,12 +6,64 @@ import {
   HousingPhase,
   Expenses,
   ExpensePhase,
+  IncomePhase,
+  SalaryIncome,
+  BusinessIncome,
 } from './types';
 import { calcNetIncome } from './tax';
 import { calcMortgageSchedule, calcRentalLoanSchedule, MortgagePayment } from './mortgage';
 import { calcTotalEducationCost } from './education';
 import { getPensionIncomeForAge } from './pension';
 import { CURRENT_YEAR } from './constants';
+
+/**
+ * 各年齢でどの収入フェーズかを判定
+ */
+function getIncomePhaseForAge(phases: IncomePhase[], age: number): IncomePhase | null {
+  if (!phases || phases.length === 0) return null;
+  const sorted = [...phases].sort((a, b) => a.startAge - b.startAge);
+  let current: IncomePhase | null = null;
+  for (const p of sorted) {
+    if (age >= p.startAge) current = p;
+    else break;
+  }
+  return current;
+}
+
+/**
+ * 収入フェーズから年間額面収入を計算
+ */
+function calcPhaseIncome(phase: IncomePhase, age: number, startAge: number): number {
+  if (phase.type === 'none') return 0;
+
+  if (phase.type === 'salary') {
+    const sp = phase as SalaryIncome;
+    const yearsInPhase = age - phase.startAge;
+    const growthYears = Math.min(yearsInPhase, sp.peakAge - phase.startAge);
+    const growthFactor = growthYears > 0 ? Math.pow(1 + sp.growthRate / 100, growthYears) : 1;
+    return Math.round((sp.annualSalary + sp.annualBonus) * growthFactor);
+  }
+
+  if (phase.type === 'business') {
+    const bp = phase as BusinessIncome;
+    const yearsInBusiness = age - phase.startAge;
+    // 立ち上げ期
+    const rampUp = yearsInBusiness === 0 ? bp.rampUpYear1
+      : yearsInBusiness === 1 ? bp.rampUpYear2 : 1.0;
+    // 客数成長(3年目以降)
+    const growthFactor = yearsInBusiness >= 2
+      ? Math.pow(1 + bp.growthRate / 100, yearsInBusiness - 2) : 1;
+    const effectiveCustomers = bp.dailyCustomers * rampUp * growthFactor;
+    // 月売上 = 客単価 × 客数 × 営業日
+    const monthlySales = (bp.customerPrice / 10000) * effectiveCustomers * bp.workDaysPerMonth;
+    // 月経費
+    const monthlyExpenses = bp.monthlyRent + bp.staffCount * bp.staffMonthlyCost + bp.otherMonthlyCost;
+    // 年間オーナー取り分(万円)→円に変換して返す
+    return Math.max(0, Math.round((monthlySales - monthlyExpenses) * 12)) * 10000;
+  }
+
+  return 0;
+}
 
 /**
  * 各年齢でどの支出フェーズかを判定
@@ -117,20 +169,34 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
     let grossSalary = 0;
     let spouseGross = 0;
 
+    const selfIncomePhases = Array.isArray(config.incomePhases) ? config.incomePhases : [];
+    const spouseIncomePhases = Array.isArray(config.spouseIncomePhases) ? config.spouseIncomePhases : [];
+
     if (age < profile.retirementAge) {
-      const yearsWorked = y;
-      const growthYears = Math.min(yearsWorked, income.peakAge - profile.currentAge);
-      const growthFactor = growthYears > 0 ? Math.pow(1 + income.salaryGrowthRate / 100, growthYears) : 1;
-      grossSalary = Math.round((income.annualSalary + income.annualBonus) * growthFactor);
+      const selfPhase = getIncomePhaseForAge(selfIncomePhases, age);
+      if (selfPhase) {
+        grossSalary = calcPhaseIncome(selfPhase, age, profile.currentAge);
+      } else {
+        // フォールバック: 従来のIncome
+        const yearsWorked = y;
+        const growthYears = Math.min(yearsWorked, income.peakAge - profile.currentAge);
+        const growthFactor = growthYears > 0 ? Math.pow(1 + income.salaryGrowthRate / 100, growthYears) : 1;
+        grossSalary = Math.round((income.annualSalary + income.annualBonus) * growthFactor);
+      }
     }
 
     const spouseAge = profile.spouseAge !== null ? profile.spouseAge + y : null;
     if (spouseAge !== null && spouseAge < profile.spouseRetirementAge) {
-      const spouseYears = y;
-      const spouseGrowthYears = Math.min(spouseYears, income.spousePeakAge - (profile.spouseAge ?? 0));
-      const spouseGrowthFactor = spouseGrowthYears > 0
-        ? Math.pow(1 + income.spouseSalaryGrowthRate / 100, spouseGrowthYears) : 1;
-      spouseGross = Math.round((income.spouseAnnualSalary + income.spouseBonus) * spouseGrowthFactor);
+      const spousePhase = getIncomePhaseForAge(spouseIncomePhases, spouseAge);
+      if (spousePhase) {
+        spouseGross = calcPhaseIncome(spousePhase, spouseAge, profile.spouseAge ?? 0);
+      } else {
+        const spouseYears = y;
+        const spouseGrowthYears = Math.min(spouseYears, income.spousePeakAge - (profile.spouseAge ?? 0));
+        const spouseGrowthFactor = spouseGrowthYears > 0
+          ? Math.pow(1 + income.spouseSalaryGrowthRate / 100, spouseGrowthYears) : 1;
+        spouseGross = Math.round((income.spouseAnnualSalary + income.spouseBonus) * spouseGrowthFactor);
+      }
     }
 
     const idecoAnnual = idecoAccounts
