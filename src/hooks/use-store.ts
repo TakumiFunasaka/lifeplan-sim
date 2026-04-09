@@ -411,7 +411,7 @@ export const useStore = create<Store>()(
       },
     }),
     {
-      name: 'lifeplan-sim-v6',
+      name: 'lifeplan-sim-v7',
       partialize: (state) => ({
         // resultは保存しない(configから再計算可能、サイズが大きくlocalStorageを溢れさせる)
         scenarios: state.scenarios.map(s => ({ id: s.id, name: s.name, config: s.config, result: null })),

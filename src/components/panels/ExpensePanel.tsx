@@ -158,12 +158,12 @@ export function ExpensePanel() {
 
   const phases = config.expensePhases ?? [];
   const hasPhases = phases.length > 0;
+  const [showAllSingle, setShowAllSingle] = useState(false);
 
   if (!hasPhases) {
     // 従来の単一支出設定
-    const [showAll, setShowAll] = useState(false);
     const activeFields = FIELDS.filter(f => (config.expenses[f.key] as number) > 0 || f.key === 'inflationRate');
-    const display = showAll ? FIELDS : activeFields;
+    const display = showAllSingle ? FIELDS : activeFields;
 
     return (
       <div className="space-y-3">
@@ -197,8 +197,8 @@ export function ExpensePanel() {
             + 支出フェーズに切り替える
           </button>
           {activeFields.length < FIELDS.length && (
-            <button onClick={() => setShowAll(!showAll)} className="text-[11px] text-gray-400 hover:text-gray-600">
-              {showAll ? '使用中の項目だけ' : `全項目(${FIELDS.length - activeFields.length}件非表示)`}
+            <button onClick={() => setShowAllSingle(!showAllSingle)} className="text-[11px] text-gray-400 hover:text-gray-600">
+              {showAllSingle ? '使用中の項目だけ' : `全項目(${FIELDS.length - activeFields.length}件非表示)`}
             </button>
           )}
         </div>
