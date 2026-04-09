@@ -86,7 +86,7 @@ function PhaseEditor({ phase, target, index }: { phase: IncomePhase; target: 'se
             const bp = phase as BusinessIncome;
             return (
               <div className="space-y-3">
-                <p className="text-[10px] text-gray-400">自分に払う年間報酬を設定。法人の場合は役員報酬。立ち上げ期は減額で計算。</p>
+                <p className="text-[10px] text-gray-400">自分に払う年間報酬(額面)を設定。法人なら役員報酬、フリーランスなら売上-経費。税・社保の控除は給与所得と同等で近似計算しています。</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <NumberField label="年間報酬(額面)" value={bp.annualRevenue} onChange={(v) => u({ ...bp, annualRevenue: v })} step={100000} suffix="円" />
                   <NumberField label="年間成長率" value={bp.growthRate} onChange={(v) => u({ ...bp, growthRate: v })} step={0.5} suffix="%" />
