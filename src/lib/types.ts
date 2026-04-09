@@ -41,14 +41,8 @@ export interface SalaryIncome extends IncomePhaseBase {
 
 export interface BusinessIncome extends IncomePhaseBase {
   type: 'business';
-  customerPrice: number;     // 客単価(円)
-  dailyCustomers: number;
-  workDaysPerMonth: number;
-  monthlyRent: number;       // 万円
-  staffCount: number;
-  staffMonthlyCost: number;  // 万円
-  otherMonthlyCost: number;  // 万円
-  growthRate: number;        // 年間客数成長率 %
+  annualRevenue: number;     // 自分の年間報酬(額面)
+  growthRate: number;        // 年間成長率 %
   rampUpYear1: number;       // 1年目の稼働率 (0-1)
   rampUpYear2: number;       // 2年目の稼働率 (0-1)
 }

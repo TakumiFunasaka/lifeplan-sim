@@ -47,19 +47,13 @@ function calcPhaseIncome(phase: IncomePhase, age: number, startAge: number): num
   if (phase.type === 'business') {
     const bp = phase as BusinessIncome;
     const yearsInBusiness = age - phase.startAge;
-    // 立ち上げ期
+    // 立ち上げ期の減額
     const rampUp = yearsInBusiness === 0 ? bp.rampUpYear1
       : yearsInBusiness === 1 ? bp.rampUpYear2 : 1.0;
-    // 客数成長(3年目以降)
+    // 成長(3年目以降)
     const growthFactor = yearsInBusiness >= 2
       ? Math.pow(1 + bp.growthRate / 100, yearsInBusiness - 2) : 1;
-    const effectiveCustomers = bp.dailyCustomers * rampUp * growthFactor;
-    // 月売上 = 客単価 × 客数 × 営業日
-    const monthlySales = (bp.customerPrice / 10000) * effectiveCustomers * bp.workDaysPerMonth;
-    // 月経費
-    const monthlyExpenses = bp.monthlyRent + bp.staffCount * bp.staffMonthlyCost + bp.otherMonthlyCost;
-    // 年間オーナー取り分(万円)→円に変換して返す
-    return Math.max(0, Math.round((monthlySales - monthlyExpenses) * 12)) * 10000;
+    return Math.max(0, Math.round(bp.annualRevenue * rampUp * growthFactor));
   }
 
   return 0;

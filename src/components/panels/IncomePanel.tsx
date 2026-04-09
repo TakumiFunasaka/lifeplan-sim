@@ -17,7 +17,7 @@ function newSalaryPhase(startAge: number): SalaryIncome {
 }
 
 function newBusinessPhase(startAge: number): BusinessIncome {
-  return { id: `ip-${Date.now()}`, name: '独立経営', startAge, type: 'business', customerPrice: 5500, dailyCustomers: 8, workDaysPerMonth: 24, monthlyRent: 15, staffCount: 0, staffMonthlyCost: 25, otherMonthlyCost: 8, growthRate: 3, rampUpYear1: 0.5, rampUpYear2: 0.8 };
+  return { id: `ip-${Date.now()}`, name: '事業/独立', startAge, type: 'business', annualRevenue: 6_000_000, growthRate: 3, rampUpYear1: 0.5, rampUpYear2: 0.8 };
 }
 
 function newNoIncomePhase(startAge: number): NoIncome {
@@ -40,9 +40,7 @@ function PhaseEditor({ phase, target, index }: { phase: IncomePhase; target: 'se
     summary = `${fmtMan(sp.annualSalary)}+賞与${fmtMan(sp.annualBonus)} 昇給${sp.growthRate}%`;
   } else if (phase.type === 'business') {
     const bp = phase as BusinessIncome;
-    const monthlySales = (bp.customerPrice / 10000) * bp.dailyCustomers * bp.workDaysPerMonth;
-    const monthlyCost = bp.monthlyRent + bp.staffCount * bp.staffMonthlyCost + bp.otherMonthlyCost;
-    summary = `売上${monthlySales.toFixed(0)}万-経費${monthlyCost}万=月${(monthlySales - monthlyCost).toFixed(0)}万`;
+    summary = `報酬${fmtMan(bp.annualRevenue)} 成長${bp.growthRate}% (1年目${Math.round(bp.rampUpYear1 * 100)}%)`;
   } else {
     summary = (phase as NoIncome).reason;
   }
@@ -86,26 +84,14 @@ function PhaseEditor({ phase, target, index }: { phase: IncomePhase; target: 'se
 
           {phase.type === 'business' && (() => {
             const bp = phase as BusinessIncome;
-            const monthlySales = (bp.customerPrice / 10000) * bp.dailyCustomers * bp.workDaysPerMonth;
-            const monthlyCost = bp.monthlyRent + bp.staffCount * bp.staffMonthlyCost + bp.otherMonthlyCost;
-            const monthlyProfit = monthlySales - monthlyCost;
             return (
               <div className="space-y-3">
-                <div className={`text-xs rounded px-3 py-2 ${monthlyProfit >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                  月売上{monthlySales.toFixed(1)}万 − 経費{monthlyCost}万 = <strong>月{monthlyProfit.toFixed(1)}万</strong>(年{Math.round(monthlyProfit * 12)}万)
-                  <span className="text-[10px] ml-1">※1年目{Math.round(bp.rampUpYear1 * 100)}% / 2年目{Math.round(bp.rampUpYear2 * 100)}%</span>
-                </div>
+                <p className="text-[10px] text-gray-400">自分に払う年間報酬を設定。法人の場合は役員報酬。立ち上げ期は減額で計算。</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <NumberField label="客単価" value={bp.customerPrice} onChange={(v) => u({ ...bp, customerPrice: v })} step={500} suffix="円" />
-                  <NumberField label="1日の客数" value={bp.dailyCustomers} onChange={(v) => u({ ...bp, dailyCustomers: v })} suffix="人" />
-                  <NumberField label="月営業日数" value={bp.workDaysPerMonth} onChange={(v) => u({ ...bp, workDaysPerMonth: v })} suffix="日" />
-                  <NumberField label="年間成長率" value={bp.growthRate} onChange={(v) => u({ ...bp, growthRate: v })} step={1} suffix="%" />
-                  <NumberField label="店舗家賃" value={bp.monthlyRent} onChange={(v) => u({ ...bp, monthlyRent: v })} suffix="万/月" />
-                  <NumberField label="スタッフ数" value={bp.staffCount} onChange={(v) => u({ ...bp, staffCount: v })} suffix="人" />
-                  {bp.staffCount > 0 && <NumberField label="1人の人件費" value={bp.staffMonthlyCost} onChange={(v) => u({ ...bp, staffMonthlyCost: v })} suffix="万/月" />}
-                  <NumberField label="その他経費" value={bp.otherMonthlyCost} onChange={(v) => u({ ...bp, otherMonthlyCost: v })} suffix="万/月" />
-                  <NumberField label="1年目稼働" value={Math.round(bp.rampUpYear1 * 100)} onChange={(v) => u({ ...bp, rampUpYear1: v / 100 })} suffix="%" />
-                  <NumberField label="2年目稼働" value={Math.round(bp.rampUpYear2 * 100)} onChange={(v) => u({ ...bp, rampUpYear2: v / 100 })} suffix="%" />
+                  <NumberField label="年間報酬(額面)" value={bp.annualRevenue} onChange={(v) => u({ ...bp, annualRevenue: v })} step={100000} suffix="円" />
+                  <NumberField label="年間成長率" value={bp.growthRate} onChange={(v) => u({ ...bp, growthRate: v })} step={0.5} suffix="%" />
+                  <NumberField label="1年目" value={Math.round(bp.rampUpYear1 * 100)} onChange={(v) => u({ ...bp, rampUpYear1: v / 100 })} suffix="%" />
+                  <NumberField label="2年目" value={Math.round(bp.rampUpYear2 * 100)} onChange={(v) => u({ ...bp, rampUpYear2: v / 100 })} suffix="%" />
                 </div>
               </div>
             );
