@@ -27,6 +27,7 @@ interface Store {
   closeScenario: (id: string) => void;
   switchScenario: (id: string) => void;
   renameScenario: (id: string, name: string) => void;
+  duplicateScenario: () => void;
   saveScenario: () => void; // アクティブシナリオをJSONダウンロード
 
   // 設定変更(アクティブシナリオに適用)
@@ -169,6 +170,25 @@ export const useStore = create<Store>()(
       renameScenario: (id, name) => {
         set((state) => ({
           scenarios: state.scenarios.map(s => s.id === id ? { ...s, name } : s),
+        }));
+      },
+
+      duplicateScenario: () => {
+        const state = get();
+        const active = state.scenarios.find(s => s.id === state.activeId);
+        if (!active) return;
+        const id = `s-${Date.now()}`;
+        const newScenario: Scenario = {
+          id,
+          name: `${active.name}のコピー`,
+          config: JSON.parse(JSON.stringify(state.config)),
+          result: state.result,
+        };
+        set((state) => ({
+          scenarios: [...state.scenarios, newScenario],
+          activeId: id,
+          config: newScenario.config,
+          result: newScenario.result,
         }));
       },
 

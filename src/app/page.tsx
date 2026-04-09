@@ -46,6 +46,7 @@ export default function Home() {
   const closeScenario = useStore((s) => s.closeScenario);
   const switchScenario = useStore((s) => s.switchScenario);
   const renameScenario = useStore((s) => s.renameScenario);
+  const duplicateScenario = useStore((s) => s.duplicateScenario);
   const saveScenario = useStore((s) => s.saveScenario);
   const resetAll = useStore((s) => s.resetAll);
 
@@ -113,6 +114,9 @@ export default function Home() {
               <>
                 <button onClick={saveScenario} className="text-[11px] px-2.5 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors">
                   Save
+                </button>
+                <button onClick={duplicateScenario} className="text-[11px] px-2.5 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors">
+                  Duplicate
                 </button>
                 <button onClick={() => {
                   const active = scenarios.find(s => s.id === activeId);
