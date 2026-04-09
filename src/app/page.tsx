@@ -110,9 +110,22 @@ export default function Home() {
               Open
             </button>
             {hasScenarios && (
-              <button onClick={saveScenario} className="text-[11px] px-2.5 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors">
-                Save
-              </button>
+              <>
+                <button onClick={saveScenario} className="text-[11px] px-2.5 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors">
+                  Save
+                </button>
+                <button onClick={() => {
+                  const active = scenarios.find(s => s.id === activeId);
+                  const name = prompt('ファイル名を入力', active?.name ?? 'lifeplan');
+                  if (name) {
+                    renameScenario(activeId!, name);
+                    // 少し待ってからsave(rename反映後)
+                    setTimeout(() => saveScenario(), 50);
+                  }
+                }} className="text-[11px] px-2.5 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors">
+                  Save as
+                </button>
+              </>
             )}
             <div className="w-px h-3.5 bg-gray-200 mx-0.5" />
             <button onClick={resetAll} className="text-[11px] px-2 py-1 text-gray-400 hover:text-red-500 transition-colors">
