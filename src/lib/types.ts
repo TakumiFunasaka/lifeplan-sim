@@ -36,6 +36,14 @@ export interface Expenses {
   inflationRate: number; // インフレ率 %
 }
 
+// ===== 支出フェーズ =====
+export interface ExpensePhase {
+  id: string;
+  name: string; // "現在", "購入後(節約)", "子供独立後", "退職後" など
+  startAge: number;
+  expenses: Expenses;
+}
+
 // ===== 住宅 =====
 export type MortgageType = 'principal_equal' | 'payment_equal'; // 元金均等 / 元利均等
 export type InterestRateType = 'fixed' | 'variable';
@@ -186,7 +194,8 @@ export interface LifeEvent {
 export interface SimulationConfig {
   profile: Profile;
   income: Income;
-  expenses: Expenses;
+  expenses: Expenses; // 後方互換用(expensePhasesが空の場合のフォールバック)
+  expensePhases: ExpensePhase[];
   housingPhases: HousingPhase[];
   rentalProperties: RentalProperty[];
   children: Child[];

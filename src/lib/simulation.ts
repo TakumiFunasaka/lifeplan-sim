@@ -4,12 +4,28 @@ import {
   SimulationResult,
   SimulationSummary,
   HousingPhase,
+  Expenses,
+  ExpensePhase,
 } from './types';
 import { calcNetIncome } from './tax';
 import { calcMortgageSchedule, calcRentalLoanSchedule, MortgagePayment } from './mortgage';
 import { calcTotalEducationCost } from './education';
 import { getPensionIncomeForAge } from './pension';
 import { CURRENT_YEAR } from './constants';
+
+/**
+ * 各年齢でどの支出フェーズかを判定
+ */
+function getExpenseForAge(phases: ExpensePhase[], age: number, fallback: Expenses): Expenses {
+  if (!phases || phases.length === 0) return fallback;
+  const sorted = [...phases].sort((a, b) => a.startAge - b.startAge);
+  let current: Expenses = fallback;
+  for (const p of sorted) {
+    if (age >= p.startAge) current = p.expenses;
+    else break;
+  }
+  return current;
+}
 
 /**
  * 各年齢でどのHousingPhaseに住んでいるか判定
@@ -135,24 +151,26 @@ export function runSimulation(config: SimulationConfig): SimulationResult {
     incomeBreakdown['その他'] = otherIncome;
 
     // ========== 支出 ==========
-    const inflationFactor = Math.pow(1 + expenses.inflationRate / 100, y);
+    const expensePhases = Array.isArray(config.expensePhases) ? config.expensePhases : [];
+    const currentExpenses = getExpenseForAge(expensePhases, age, expenses);
+    const inflationFactor = Math.pow(1 + currentExpenses.inflationRate / 100, y);
 
     const baseLiving = (
-      expenses.food + expenses.utilities + expenses.transportation +
-      expenses.clothing + expenses.medical + expenses.entertainment +
-      expenses.education + expenses.miscellaneous + expenses.otherMonthly
-    ) * 12 + expenses.annualSpecial;
+      currentExpenses.food + currentExpenses.utilities + currentExpenses.transportation +
+      currentExpenses.clothing + currentExpenses.medical + currentExpenses.entertainment +
+      currentExpenses.education + currentExpenses.miscellaneous + currentExpenses.otherMonthly
+    ) * 12 + currentExpenses.annualSpecial;
     const livingExpenses = Math.round(baseLiving * inflationFactor);
 
-    expenseBreakdown['食費'] = Math.round(expenses.food * 12 * inflationFactor);
-    expenseBreakdown['光熱・通信'] = Math.round(expenses.utilities * 12 * inflationFactor);
-    expenseBreakdown['交通費'] = Math.round(expenses.transportation * 12 * inflationFactor);
-    expenseBreakdown['被服'] = Math.round(expenses.clothing * 12 * inflationFactor);
-    expenseBreakdown['医療'] = Math.round(expenses.medical * 12 * inflationFactor);
-    expenseBreakdown['娯楽'] = Math.round(expenses.entertainment * 12 * inflationFactor);
-    expenseBreakdown['自己投資'] = Math.round(expenses.education * 12 * inflationFactor);
-    expenseBreakdown['雑費'] = Math.round(expenses.miscellaneous * 12 * inflationFactor);
-    expenseBreakdown['特別支出'] = Math.round(expenses.annualSpecial * inflationFactor);
+    expenseBreakdown['食費'] = Math.round(currentExpenses.food * 12 * inflationFactor);
+    expenseBreakdown['光熱・通信'] = Math.round(currentExpenses.utilities * 12 * inflationFactor);
+    expenseBreakdown['交通費'] = Math.round(currentExpenses.transportation * 12 * inflationFactor);
+    expenseBreakdown['被服'] = Math.round(currentExpenses.clothing * 12 * inflationFactor);
+    expenseBreakdown['医療'] = Math.round(currentExpenses.medical * 12 * inflationFactor);
+    expenseBreakdown['娯楽'] = Math.round(currentExpenses.entertainment * 12 * inflationFactor);
+    expenseBreakdown['自己投資'] = Math.round(currentExpenses.education * 12 * inflationFactor);
+    expenseBreakdown['雑費'] = Math.round(currentExpenses.miscellaneous * 12 * inflationFactor);
+    expenseBreakdown['特別支出'] = Math.round(currentExpenses.annualSpecial * inflationFactor);
 
     // ========== 住居費 ==========
     let housingCost = 0;
