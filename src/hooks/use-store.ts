@@ -24,6 +24,7 @@ interface Store {
 
   // シナリオ管理
   openScenario: (json: string, name: string) => boolean;
+  newScenario: (name?: string) => void;
   closeScenario: (id: string) => void;
   switchScenario: (id: string) => void;
   renameScenario: (id: string, name: string) => void;
@@ -146,6 +147,19 @@ export const useStore = create<Store>()(
           result,
         }));
         return true;
+      },
+
+      newScenario: (name = '新規シナリオ') => {
+        const config = JSON.parse(JSON.stringify(defaultConfig)) as SimulationConfig;
+        const id = `s-${Date.now()}`;
+        const result = runSimulation(config);
+        const scenario: Scenario = { id, name, config, result };
+        set((state) => ({
+          scenarios: [...state.scenarios, scenario],
+          activeId: id,
+          config,
+          result,
+        }));
       },
 
       closeScenario: (id) => {

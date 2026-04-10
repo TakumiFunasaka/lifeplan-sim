@@ -47,6 +47,7 @@ export default function Home() {
   const switchScenario = useStore((s) => s.switchScenario);
   const renameScenario = useStore((s) => s.renameScenario);
   const duplicateScenario = useStore((s) => s.duplicateScenario);
+  const newScenario = useStore((s) => s.newScenario);
   const saveScenario = useStore((s) => s.saveScenario);
   const resetAll = useStore((s) => s.resetAll);
 
@@ -107,6 +108,9 @@ export default function Home() {
           <h1 className="text-sm font-semibold tracking-tight text-gray-800">LifePlan Sim</h1>
           <div className="flex gap-1.5 items-center">
             <input ref={fileInputRef} type="file" accept=".json" onChange={handleOpenFile} className="hidden" multiple />
+            <button onClick={() => newScenario()} className="text-[11px] px-2.5 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors">
+              New
+            </button>
             <button onClick={() => fileInputRef.current?.click()} className="text-[11px] px-2.5 py-1 rounded-md border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-700 transition-colors">
               Open
             </button>
@@ -202,12 +206,20 @@ export default function Home() {
             </div>
             <h2 className="text-xl font-semibold text-gray-800 mb-2">LifePlan Simulator</h2>
             <p className="text-sm text-gray-400 mb-8 max-w-xs">住宅購入、投資、保険、教育費を精密にシミュレーション。複数シナリオの比較が可能です。</p>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="px-8 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-md shadow-blue-200 hover:shadow-lg transition-all"
-            >
-              JSONファイルを開く
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => newScenario()}
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium shadow-md shadow-blue-200 hover:shadow-lg transition-all"
+              >
+                新規作成
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="px-6 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-all"
+              >
+                JSONを開く
+              </button>
+            </div>
             <p className="text-[11px] text-gray-300 mt-3">複数ファイルを同時に選択できます</p>
           </div>
         ) : (
