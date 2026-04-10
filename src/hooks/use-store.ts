@@ -70,25 +70,25 @@ interface Store {
 }
 
 const defaultConfig: SimulationConfig = {
-  profile: { currentAge: 31, retirementAge: 65, endAge: 100, spouseAge: 30, spouseRetirementAge: 65 },
-  income: { annualSalary: 5_000_000, annualBonus: 1_000_000, salaryGrowthRate: 2.0, peakAge: 55, spouseAnnualSalary: 3_000_000, spouseBonus: 500_000, spouseSalaryGrowthRate: 1.5, spousePeakAge: 55, sideIncomeMonthly: 0, otherAnnualIncome: 0 },
+  profile: { currentAge: 30, retirementAge: 65, endAge: 95, spouseAge: null, spouseRetirementAge: 65 },
+  income: { annualSalary: 4_000_000, annualBonus: 800_000, salaryGrowthRate: 2.0, peakAge: 55, spouseAnnualSalary: 0, spouseBonus: 0, spouseSalaryGrowthRate: 1.5, spousePeakAge: 55, sideIncomeMonthly: 0, otherAnnualIncome: 0 },
   incomePhases: [],
   spouseIncomePhases: [],
-  expenses: { food: 60_000, utilities: 25_000, transportation: 15_000, clothing: 10_000, medical: 10_000, entertainment: 20_000, education: 10_000, miscellaneous: 15_000, otherMonthly: 0, annualSpecial: 300_000, inflationRate: 1.0 },
+  expenses: { food: 40_000, utilities: 15_000, transportation: 10_000, clothing: 10_000, medical: 5_000, entertainment: 20_000, education: 5_000, miscellaneous: 10_000, otherMonthly: 0, annualSpecial: 200_000, inflationRate: 1.5 },
   expensePhases: [],
   housingPhases: [],
   rentalProperties: [],
   children: [],
   insurances: [],
   investments: [],
-  pension: { kousei: true, kokumin: true, enrollmentYears: 38, averageStandardRemuneration: 350_000, spouseKousei: true, spouseEnrollmentYears: 30, spouseAverageRemuneration: 250_000, corporatePensionMonthly: 0, pensionStartAge: 65, spousePensionStartAge: 65 },
+  pension: { kousei: true, kokumin: true, enrollmentYears: 40, averageStandardRemuneration: 350_000, spouseKousei: false, spouseEnrollmentYears: 0, spouseAverageRemuneration: 0, corporatePensionMonthly: 0, pensionStartAge: 65, spousePensionStartAge: 65 },
   lifeEvents: [],
-  currentSavings: 3_000_000,
+  currentSavings: 1_000_000,
   currentInvestmentBalance: 0,
   investmentCapToSurplus: true,
   retirementDrawdown: true,
   retirementDrawdownBuffer: 3_000_000,
-  postRetirementReturn: 2.0,
+  postRetirementReturn: 1.5,
 };
 
 function parseConfig(json: string): SimulationConfig | null {
